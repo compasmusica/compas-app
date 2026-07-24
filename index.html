@@ -7,7 +7,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<meta name="theme-color" content="#151922">
+<meta name="theme-color" content="#FBF8F2">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Compás">
@@ -15,19 +15,19 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{
-    --ink:#151922;
-    --ink-2:#1d232f;
+    --ink:#FBF8F2;
+    --ink-2:#FFFFFF;
     --paper:#F6F1E7;
     --paper-dim:#e9e2d3;
-    --brass:#c9973f;
-    --brass-bright:#e0b563;
-    --teal:#2f6e68;
-    --teal-bright:#3f8f87;
-    --text-warm:#f4efe4;
-    --text-dim:#a9a9ad;
-    --danger:#c1543f;
+    --brass:#B8863A;
+    --brass-bright:#D9A64F;
+    --teal:#2F5D8A;
+    --teal-bright:#4A7FB5;
+    --text-warm:#20242E;
+    --text-dim:#6B6B72;
+    --danger:#C1543F;
     --radius:14px;
-    --shadow:0 10px 30px rgba(0,0,0,0.25);
+    --shadow:0 8px 24px rgba(32,36,46,0.08);
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -56,7 +56,7 @@
   #app{max-width:480px;margin:0 auto;min-height:100vh;position:relative;background:var(--ink);}
 
   .staff{position:relative;height:56px;margin:0 24px;}
-  .staff .line{position:absolute;left:0;right:0;height:1px;background:rgba(244,239,228,0.16);}
+  .staff .line{position:absolute;left:0;right:0;height:1px;background:rgba(32,36,46,0.16);}
   .staff .line:nth-child(1){top:8px;}
   .staff .line:nth-child(2){top:20px;}
   .staff .line:nth-child(3){top:32px;}
@@ -64,7 +64,7 @@
 
   .topbar{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 8px;}
   .brand{display:flex;align-items:center;gap:10px;}
-  .brand-mark{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--brass),var(--brass-bright));display:flex;align-items:center;justify-content:center;color:var(--ink);font-weight:700;font-family:'Fraunces',serif;flex-shrink:0;}
+  .brand-mark{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--brass),var(--brass-bright));display:flex;align-items:center;justify-content:center;color:var(--text-warm);font-weight:700;font-family:'Fraunces',serif;flex-shrink:0;}
   .brand h1{font-size:20px;color:var(--text-warm);}
   .brand .tag{font-size:11px;color:var(--brass-bright);margin-top:1px;}
 
@@ -89,9 +89,9 @@
   .cta-row{display:flex;gap:10px;margin-top:18px;}
   .btn{border:none;border-radius:999px;padding:13px 20px;font-size:14px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:transform .15s ease, opacity .15s ease;}
   .btn:active{transform:scale(0.97);}
-  .btn-primary{background:var(--brass);color:var(--ink);}
+  .btn-primary{background:var(--brass);color:var(--text-warm);}
   .btn-primary:hover{background:var(--brass-bright);}
-  .btn-ghost{background:transparent;color:var(--text-warm);border:1px solid rgba(244,239,228,0.25);}
+  .btn-ghost{background:transparent;color:var(--text-warm);border:1px solid rgba(32,36,46,0.25);}
   .btn-ghost:hover{border-color:var(--brass);color:var(--brass-bright);}
   .btn-block{width:100%;}
   .btn-lg{padding:16px 22px;font-size:15px;}
@@ -101,11 +101,11 @@
   .btn-teal:hover{background:var(--teal-bright);}
 
   .filterbar{display:flex;gap:8px;margin:18px 0 14px;overflow-x:auto;padding-bottom:4px;}
-  .chip{flex-shrink:0;padding:8px 14px;border-radius:999px;background:var(--ink-2);border:1px solid rgba(244,239,228,0.12);font-size:13px;color:var(--text-dim);white-space:nowrap;}
+  .chip{flex-shrink:0;padding:8px 14px;border-radius:999px;background:var(--ink-2);border:1px solid rgba(32,36,46,0.12);font-size:13px;color:var(--text-dim);white-space:nowrap;}
   .chip.active{background:var(--teal);color:var(--text-warm);border-color:var(--teal);}
 
   .card-list{display:flex;flex-direction:column;gap:12px;margin-top:4px;}
-  .teacher-card{background:var(--ink-2);border-radius:var(--radius);padding:14px;display:flex;gap:12px;border:1px solid rgba(244,239,228,0.06);}
+  .teacher-card{background:var(--ink-2);border-radius:var(--radius);padding:14px;display:flex;gap:12px;border:1px solid rgba(32,36,46,0.06);}
   .avatar{width:56px;height:56px;border-radius:12px;flex-shrink:0;background:linear-gradient(135deg,var(--teal),var(--teal-bright));display:flex;align-items:center;justify-content:center;font-family:'Fraunces',serif;font-weight:600;font-size:20px;color:var(--text-warm);background-size:cover;background-position:center;}
   .tcard-body{flex:1;min-width:0;}
   .tcard-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
@@ -119,21 +119,21 @@
   .contact-btn{width:100%;justify-content:center;font-size:12.5px;padding:9px 12px;}
   .contact-revealed{display:flex;align-items:center;gap:8px;background:rgba(47,110,104,0.18);border-radius:999px;padding:9px 12px;font-size:12.5px;color:var(--teal-bright);text-decoration:none;justify-content:center;font-weight:600;}
   .verified-badge{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--teal);color:var(--text-warm);font-size:10px;vertical-align:middle;}
-  .star{color:rgba(244,239,228,0.2);cursor:pointer;transition:color .15s ease;}
+  .star{color:rgba(32,36,46,0.2);cursor:pointer;transition:color .15s ease;}
   .star.on{color:var(--brass-bright);}
 
   /* Chat interno */
-  .chat-header{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid rgba(244,239,228,0.08);}
+  .chat-header{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid rgba(32,36,46,0.08);}
   .chat-back{background:none;border:none;color:var(--text-dim);font-size:20px;padding:4px;}
   .chat-messages{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:10px;}
   .msg{max-width:78%;padding:10px 14px;border-radius:16px;font-size:14px;line-height:1.4;}
-  .msg.mine{align-self:flex-end;background:var(--brass);color:var(--ink);border-bottom-right-radius:4px;}
+  .msg.mine{align-self:flex-end;background:var(--brass);color:var(--text-warm);border-bottom-right-radius:4px;}
   .msg.other{align-self:flex-start;background:var(--ink-2);color:var(--text-warm);border-bottom-left-radius:4px;}
   .msg-time{font-size:10px;opacity:0.6;margin-top:3px;display:block;}
-  .chat-input-row{display:flex;gap:8px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid rgba(244,239,228,0.08);}
-  .chat-input-row input{flex:1;background:var(--ink-2);border:1.5px solid rgba(244,239,228,0.12);border-radius:999px;padding:11px 16px;color:var(--text-warm);font-size:14px;outline:none;}
+  .chat-input-row{display:flex;gap:8px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid rgba(32,36,46,0.08);}
+  .chat-input-row input{flex:1;background:var(--ink-2);border:1.5px solid rgba(32,36,46,0.12);border-radius:999px;padding:11px 16px;color:var(--text-warm);font-size:14px;outline:none;}
   .chat-input-row input:focus{border-color:var(--brass);}
-  .chat-send{background:var(--brass);color:var(--ink);border:none;border-radius:50%;width:42px;height:42px;flex-shrink:0;font-size:16px;}
+  .chat-send{background:var(--brass);color:var(--text-warm);border:none;border-radius:50%;width:42px;height:42px;flex-shrink:0;font-size:16px;}
 
   /* Horarios de disponibilidad */
   .pausa-banner{background:rgba(193,84,63,0.15);border:1px solid rgba(193,84,63,0.3);border-radius:10px;padding:10px 14px;font-size:12.5px;color:var(--danger);margin-bottom:12px;}
@@ -141,10 +141,10 @@
   .horario-block.ocupado{opacity:0.5;}
   .horario-block-actions{display:flex;gap:8px;}
   .horario-block-actions button{background:none;border:none;color:var(--text-dim);font-size:15px;padding:2px 4px;}
-  .slot-pill{display:inline-block;padding:9px 14px;border-radius:999px;background:var(--ink-2);border:1.5px solid rgba(244,239,228,0.12);font-size:12.5px;color:var(--text-warm);margin:0 6px 8px 0;cursor:pointer;}
+  .slot-pill{display:inline-block;padding:9px 14px;border-radius:999px;background:var(--ink-2);border:1.5px solid rgba(32,36,46,0.12);font-size:12.5px;color:var(--text-warm);margin:0 6px 8px 0;cursor:pointer;}
   .slot-pill.selected{border-color:var(--brass);background:rgba(201,151,63,0.12);color:var(--brass-bright);}
   .toggle-row{display:flex;align-items:center;justify-content:space-between;background:var(--ink-2);border-radius:10px;padding:12px 14px;margin-bottom:14px;}
-  .toggle-switch{width:42px;height:24px;border-radius:999px;background:rgba(244,239,228,0.15);position:relative;cursor:pointer;transition:background .15s ease;flex-shrink:0;}
+  .toggle-switch{width:42px;height:24px;border-radius:999px;background:rgba(32,36,46,0.15);position:relative;cursor:pointer;transition:background .15s ease;flex-shrink:0;}
   .toggle-switch.on{background:var(--danger);}
   .toggle-switch .knob{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--text-warm);transition:left .15s ease;}
   .toggle-switch.on .knob{left:21px;}
@@ -153,7 +153,7 @@
   .empty-state .icon{font-size:34px;margin-bottom:10px;opacity:0.6;}
   .empty-state p{font-size:13.5px;line-height:1.5;}
 
-  .bottomnav{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;background:rgba(21,25,34,0.92);backdrop-filter:blur(10px);border-top:1px solid rgba(244,239,228,0.08);display:flex;padding:8px 8px calc(8px + env(safe-area-inset-bottom));}
+  .bottomnav{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;background:rgba(21,25,34,0.92);backdrop-filter:blur(10px);border-top:1px solid rgba(32,36,46,0.08);display:flex;padding:8px 8px calc(8px + env(safe-area-inset-bottom));}
   .navbtn{flex:1;background:none;border:none;color:var(--text-dim);display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;border-radius:10px;font-size:10.5px;position:relative;}
   .navbtn .ic{font-size:19px;}
   .navbtn.active{color:var(--brass-bright);}
@@ -163,11 +163,11 @@
   .wizard-back{background:none;border:none;color:var(--text-dim);font-size:20px;padding:4px;}
   .wizard-progress{flex:1;position:relative;height:30px;}
   .staff-progress{position:relative;height:100%;}
-  .staff-progress .sline{position:absolute;left:0;right:0;height:1px;background:rgba(244,239,228,0.14);}
+  .staff-progress .sline{position:absolute;left:0;right:0;height:1px;background:rgba(32,36,46,0.14);}
   .staff-progress .sline:nth-child(1){top:6px;}
   .staff-progress .sline:nth-child(2){top:15px;}
   .staff-progress .sline:nth-child(3){top:24px;}
-  .note{position:absolute;top:10px;width:16px;height:16px;border-radius:50%;background:var(--ink-2);border:2px solid rgba(244,239,228,0.25);transform:translateX(-50%);transition:all .25s ease;}
+  .note{position:absolute;top:10px;width:16px;height:16px;border-radius:50%;background:var(--ink-2);border:2px solid rgba(32,36,46,0.25);transform:translateX(-50%);transition:all .25s ease;}
   .note.done{background:var(--brass);border-color:var(--brass);}
   .note.current{background:var(--teal);border-color:var(--teal-bright);width:20px;height:20px;top:8px;box-shadow:0 0 0 4px rgba(47,110,104,0.25);}
 
@@ -179,7 +179,7 @@
   .field{margin-bottom:18px;}
   .field label{display:block;font-size:12.5px;color:var(--text-dim);margin-bottom:7px;font-weight:500;}
   .field input[type=text], .field input[type=tel], .field input[type=email], .field input[type=number], .field input[type=url], .field input[type=password], .field textarea, .field select{
-    width:100%;background:var(--ink-2);border:1.5px solid rgba(244,239,228,0.12);border-radius:10px;padding:13px 14px;color:var(--text-warm);font-size:15px;outline:none;transition:border-color .15s ease;
+    width:100%;background:var(--ink-2);border:1.5px solid rgba(32,36,46,0.12);border-radius:10px;padding:13px 14px;color:var(--text-warm);font-size:15px;outline:none;transition:border-color .15s ease;
   }
   .field input:focus, .field textarea:focus, .field select:focus{border-color:var(--brass);}
   .field textarea{resize:vertical;min-height:90px;}
@@ -188,10 +188,10 @@
 
   .option-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   .option-grid.thirds{grid-template-columns:1fr 1fr 1fr;}
-  .option-card{background:var(--ink-2);border:1.5px solid rgba(244,239,228,0.12);border-radius:10px;padding:14px 10px;text-align:center;color:var(--text-dim);font-size:13px;font-weight:500;}
+  .option-card{background:var(--ink-2);border:1.5px solid rgba(32,36,46,0.12);border-radius:10px;padding:14px 10px;text-align:center;color:var(--text-dim);font-size:13px;font-weight:500;}
   .option-card.selected{border-color:var(--brass);color:var(--brass-bright);background:rgba(201,151,63,0.08);}
 
-  .photo-upload{width:100%;aspect-ratio:1.6;border-radius:12px;border:1.5px dashed rgba(244,239,228,0.25);display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-dim);gap:8px;background:var(--ink-2);position:relative;overflow:hidden;}
+  .photo-upload{width:100%;aspect-ratio:1.6;border-radius:12px;border:1.5px dashed rgba(32,36,46,0.25);display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-dim);gap:8px;background:var(--ink-2);position:relative;overflow:hidden;}
   .photo-upload .ic{font-size:26px;}
   .photo-upload span{font-size:12.5px;}
   .photo-upload img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
@@ -214,9 +214,9 @@
 
   .auth-tabs{display:flex;gap:6px;background:var(--ink);border-radius:10px;padding:4px;margin-bottom:20px;}
   .auth-tab{flex:1;text-align:center;padding:9px;border-radius:8px;font-size:12.5px;color:var(--text-dim);background:none;border:none;font-weight:600;}
-  .auth-tab.active{background:var(--brass);color:var(--ink);}
+  .auth-tab.active{background:var(--brass);color:var(--text-warm);}
 
-  .sup-card{background:var(--ink-2);border-radius:var(--radius);padding:14px;border:1px solid rgba(244,239,228,0.06);margin-bottom:12px;}
+  .sup-card{background:var(--ink-2);border-radius:var(--radius);padding:14px;border:1px solid rgba(32,36,46,0.06);margin-bottom:12px;}
   .sup-top{display:flex;justify-content:space-between;align-items:center;}
   .sup-title{font-weight:600;font-size:14.5px;color:var(--text-warm);}
   .sup-monto{font-family:'IBM Plex Mono';color:var(--brass-bright);font-size:13px;}
@@ -225,11 +225,11 @@
   .sup-postulantes{font-size:11px;color:var(--teal-bright);margin-top:8px;}
 
   .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px;}
-  .stat-card{background:var(--ink-2);border-radius:var(--radius);padding:16px;border:1px solid rgba(244,239,228,0.06);}
+  .stat-card{background:var(--ink-2);border-radius:var(--radius);padding:16px;border:1px solid rgba(32,36,46,0.06);}
   .stat-num{font-family:'Fraunces',serif;font-size:28px;font-weight:600;color:var(--brass-bright);}
   .stat-label{font-size:11.5px;color:var(--text-dim);margin-top:4px;}
   .admin-section-title{font-size:13px;color:var(--text-dim);margin:24px 0 10px;font-weight:600;}
-  .admin-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid rgba(244,239,228,0.06);font-size:13.5px;}
+  .admin-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid rgba(32,36,46,0.06);font-size:13.5px;}
   .admin-row:last-child{border-bottom:none;}
   .admin-row .name{color:var(--text-warm);}
   .admin-row .meta{color:var(--text-dim);font-size:12px;}
@@ -473,6 +473,25 @@
     </div>
   </div>
 
+  <!-- ===== MODAL: ZONAS ADICIONALES ===== -->
+  <div class="modal-overlay" id="zonasModal">
+    <div class="modal">
+      <h3>Zonas adicionales</h3>
+      <div class="hint">¿A qué otros distritos puedes ir además del tuyo? El costo extra es informativo, se coordina por chat.</div>
+
+      <div class="admin-section-title mono">Tus zonas adicionales</div>
+      <div id="zonasList"></div>
+
+      <div class="admin-section-title mono">Agregar zona</div>
+      <div class="field"><label>Distrito</label><select id="zona_distrito"></select></div>
+      <div class="field"><label>Costo extra (opcional, S/)</label><input type="number" id="zona_costo" placeholder="Ej. 15, o déjalo vacío"></div>
+      <button class="btn btn-teal btn-block" onclick="agregarZonaAdicional()">+ Agregar zona</button>
+
+      <button class="btn btn-primary btn-block" style="margin-top:18px;" onclick="guardarZonas()">Guardar cambios</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeZonasModal()">Cerrar</button>
+    </div>
+  </div>
+
 </div>
 
 <script type="module">
@@ -638,7 +657,10 @@ function populateInstrumentSelect(selectEl){
 function renderFilterbar(){
   const bar = document.getElementById('filterbar');
   bar.innerHTML = "";
-  const zonesUsed = ["Todos", ...new Set(TEACHERS.filter(t=>t.aprobado===true).map(t=>t.zone))];
+  const aprobados = TEACHERS.filter(t=>t.aprobado===true);
+  const zonasBase = aprobados.map(t=>t.zone);
+  const zonasExtra = aprobados.flatMap(t=>(t.zonasAdicionales||[]).map(z=>z.zona));
+  const zonesUsed = ["Todos", ...new Set([...zonasBase, ...zonasExtra])];
   zonesUsed.forEach(z=>{
     const chip = document.createElement('button');
     chip.className = "chip" + (z===activeFilter ? " active":"");
@@ -653,7 +675,9 @@ function initials(name){ return (name||"?").split(' ').map(p=>p[0]).slice(0,2).j
 function renderTeacherList(){
   const list = document.getElementById('teacherList');
   const aprobados = TEACHERS.filter(t=>t.aprobado === true);
-  const filtered = activeFilter==="Todos" ? aprobados : aprobados.filter(t=>t.zone===activeFilter);
+  const filtered = activeFilter==="Todos" ? aprobados : aprobados.filter(t=>
+    t.zone===activeFilter || (t.zonasAdicionales||[]).some(z=>z.zona===activeFilter)
+  );
   if(filtered.length===0){
     list.innerHTML = `<div class="empty-state"><div class="icon">♪</div><p>Todavía no hay profesores en esta zona.<br>Sé el primero en publicar tu perfil.</p></div>`;
     return;
@@ -663,6 +687,11 @@ function renderTeacherList(){
     const rating = VALORACIONES_POR_PROFESOR[t.id];
     const ratingHtml = rating ? `<span class="tag-pill" style="background:rgba(201,151,63,0.14);color:var(--brass-bright);">★ ${rating.promedio.toFixed(1)} (${rating.cantidad})</span>` : '';
     const pausaHtml = t.pausado ? `<span class="tag-pill" style="background:rgba(193,84,63,0.18);color:var(--danger);">En pausa</span>` : '';
+    // Si estamos filtrando por una zona que no es la suya, pero la cubre como adicional, avisamos.
+    const zonaExtra = activeFilter!=="Todos" && activeFilter!==t.zone
+      ? (t.zonasAdicionales||[]).find(z=>z.zona===activeFilter) : null;
+    const zonaExtraHtml = zonaExtra
+      ? `<span class="tag-pill" style="background:rgba(47,110,104,0.16);color:var(--teal-bright);">También disponible en ${zonaExtra.zona}${zonaExtra.costo ? ` (+S/${zonaExtra.costo})` : ''}</span>` : '';
     return `
     <div class="teacher-card">
       <div class="avatar" style="${t.photo ? `background-image:url(${t.photo})`:''}">${t.photo?'':initials(t.name)}</div>
@@ -677,6 +706,7 @@ function renderTeacherList(){
           <span class="tag-pill">${MODALIDADES.find(m=>m.id===t.modalidad)?.label || t.modalidad}</span>
           ${ratingHtml}
           ${pausaHtml}
+          ${zonaExtraHtml}
         </div>
         <div class="contact-row"><button class="btn btn-teal contact-btn" onclick="event.stopPropagation(); openSolicitudModal('${t.id}')">Solicitar horario</button></div>
       </div>
@@ -1465,7 +1495,8 @@ function renderMyProfilePreview(){
       </div>
     </div>
     <button class="btn btn-ghost btn-block" style="margin-top:12px;" onclick="editMyProfile()">Editar mi perfil</button>
-    <button class="btn btn-teal btn-block" style="margin-top:10px;" onclick="openHorariosModal()">Mis horarios</button>`;
+    <button class="btn btn-teal btn-block" style="margin-top:10px;" onclick="openHorariosModal()">Mis horarios</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="openZonasModal()">Zonas adicionales</button>`;
 }
 
 /* ============ MIS HORARIOS (disponibilidad del profesor) ============ */
@@ -1576,6 +1607,67 @@ window.guardarHorarios = async function(){
     currentEditingTeacher.pausaMensaje = pausaMensaje;
     closeHorariosModal();
     toast('Tus horarios se guardaron ✓');
+  }catch(e){ console.error(e); toast('No se pudo guardar', true); }
+}
+
+/* ============ ZONAS ADICIONALES (mismo patrón que Mis horarios) ============ */
+let zonasDraft = [];
+
+window.openZonasModal = function(){
+  if(!currentEditingTeacher){ toast('Primero publica tu perfil de profesor', true); return; }
+  zonasDraft = [...(currentEditingTeacher.zonasAdicionales || [])];
+  populateZonaDistritoSelect();
+  renderZonasList();
+  document.getElementById('zonasModal').classList.add('active');
+}
+window.closeZonasModal = function(){ document.getElementById('zonasModal').classList.remove('active'); }
+
+function populateZonaDistritoSelect(){
+  const sel = document.getElementById('zona_distrito');
+  if(sel.options.length) return;
+  ZONES.forEach(z=>{
+    const o = document.createElement('option');
+    o.value = z; o.textContent = z;
+    sel.appendChild(o);
+  });
+}
+
+function renderZonasList(){
+  const wrap = document.getElementById('zonasList');
+  if(zonasDraft.length===0){
+    wrap.innerHTML = `<div class="empty-state" style="padding:20px;"><p>Todavía no agregaste zonas adicionales.</p></div>`;
+    return;
+  }
+  wrap.innerHTML = zonasDraft.map((z,i)=>`
+    <div class="horario-block">
+      <span>${z.zona}${z.costo ? ` · +S/ ${z.costo}` : ' · Sin costo extra'}</span>
+      <div class="horario-block-actions">
+        <button onclick="eliminarZonaAdicional(${i})" title="Eliminar">🗑</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+window.agregarZonaAdicional = function(){
+  const zona = document.getElementById('zona_distrito').value;
+  const costoStr = document.getElementById('zona_costo').value;
+  if(zona === currentEditingTeacher.zone){ toast('Esa ya es tu zona base', true); return; }
+  if(zonasDraft.some(z=>z.zona===zona)){ toast('Ya agregaste esa zona', true); return; }
+  zonasDraft.push({ zona, costo: costoStr ? Number(costoStr) : null });
+  document.getElementById('zona_costo').value = '';
+  renderZonasList();
+}
+window.eliminarZonaAdicional = function(i){
+  zonasDraft.splice(i,1);
+  renderZonasList();
+}
+
+window.guardarZonas = async function(){
+  try{
+    await updateDoc(doc(db,"profesores",currentUser.uid), { zonasAdicionales: zonasDraft });
+    currentEditingTeacher.zonasAdicionales = zonasDraft;
+    closeZonasModal();
+    toast('Tus zonas adicionales se guardaron ✓');
   }catch(e){ console.error(e); toast('No se pudo guardar', true); }
 }
 
@@ -1906,11 +1998,4 @@ populateInstrumentSelect(document.getElementById('sup_instrument'));
 renderNavLock();
 
 /* ============ PWA: registrar service worker ============ */
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('service-worker.js').catch((e) => console.log('SW no registrado:', e));
-  });
-}
-</script>
-</body>
-</html>
+if ('serviceWorker' in navigator
