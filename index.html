@@ -130,6 +130,7 @@
   .msg.mine{align-self:flex-end;background:var(--brass);color:var(--text-warm);border-bottom-right-radius:4px;}
   .msg.other{align-self:flex-start;background:var(--ink-2);color:var(--text-warm);border-bottom-left-radius:4px;}
   .msg-time{font-size:10px;opacity:0.6;margin-top:3px;display:block;}
+  .meet-btn{display:inline-flex;align-items:center;gap:6px;background:var(--teal);color:#fff;padding:9px 14px;border-radius:999px;font-size:12.5px;font-weight:600;text-decoration:none;margin-top:4px;}
   .chat-input-row{display:flex;gap:8px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid rgba(32,36,46,0.08);}
   .chat-input-row input{flex:1;background:var(--ink-2);border:1.5px solid rgba(32,36,46,0.12);border-radius:999px;padding:11px 16px;color:var(--text-warm);font-size:14px;outline:none;}
   .chat-input-row input:focus{border-color:var(--brass);}
@@ -242,7 +243,7 @@
 
   <div class="topbar">
     <div class="brand">
-      <img src="icono-192.png" alt="Logo Compás" style="width: 58px; height: 58px; border-radius: 50%; object-fit: cover;">
+      <div class="brand-mark"><img src="icono-192.png" alt="Logo Compás" style="width: 58px; height: 58px; border-radius: 50%; object-fit: cover;"></div>
       <div>
         <h1>Compás</h1>
         <div class="tag mono">Egresados del Conservatorio</div>
@@ -1071,7 +1072,7 @@ window.openChat = async function(reservaId, otroNombre){
         const m = d.data();
         const mia = m.de === currentUser.uid;
         const hora = m.createdAt?.toDate ? m.createdAt.toDate().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}) : '';
-        return `<div class="msg ${mia?'mine':'other'}">${m.texto}<span class="msg-time">${hora}</span></div>`;
+        return `<div class="msg ${mia?'mine':'other'}">${formatMensaje(m.texto)}<span class="msg-time">${hora}</span></div>`;
       }).join('');
       wrap.scrollTop = wrap.scrollHeight;
     }, (err)=>{
@@ -1084,10 +1085,36 @@ window.openChat = async function(reservaId, otroNombre){
   }
 }
 
+/* Escapa HTML para que nadie pueda inyectar código dentro del chat */
+function escapeHtml(str){
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* Si el mensaje trae un link de Google Meet, lo convierte en botón.
+   El resto del texto se muestra tal cual (ya escapado, sin riesgo de HTML). */
+function formatMensaje(textoCrudo){
+  const escapado = escapeHtml(textoCrudo);
+  const meetRegex = /(https?:\/\/meet\.google\.com\/[a-zA-Z0-9\-]+)/i;
+  const match = escapado.match(meetRegex);
+  if(match){
+    const antes = escapado.slice(0, match.index).trim();
+    const link = match[1];
+    return `${antes ? antes + '<br>' : ''}<a href="${link}" target="_blank" class="meet-btn">🎥 Unirse a la clase por Google Meet</a>`;
+  }
+  return escapado;
+}
+
 window.closeChat = function(){
   if(chatUnsub){ chatUnsub(); chatUnsub = null; } // desconecta el listener, deja de gastar lecturas
   switchView('misreservas');
   loadMyReservas();
+}
+
+/* Detecta menciones a teléfono, WhatsApp, Yape o Plin — no bloquea el
+   mensaje, solo avisa, porque coordinar fuera de la app pone en riesgo
+   la devolución del dinero si algo sale mal. */
+function contieneRiesgoDePago(texto){
+  return /\b\d{9}\b/.test(texto) || /whatsapp|yape|plin/i.test(texto);
 }
 
 window.sendChatMessage = async function(){
@@ -1095,6 +1122,11 @@ window.sendChatMessage = async function(){
   const texto = input.value.trim();
   if(!texto || !chatReservaId) return;
   input.value = '';
+
+  if(contieneRiesgoDePago(texto)){
+    toast('Por tu seguridad y para garantizar la devolución de tu dinero, mantén la comunicación en el chat de Compás', true);
+  }
+
   try{
     await addDoc(collection(db,"reservas",chatReservaId,"mensajes"), {
       de: currentUser.uid,
@@ -1999,7 +2031,7 @@ renderNavLock();
 
 /* ============ PWA: registrar service worker ============ */
 if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
+  window.addEventListener('load', () => {
     navigator.serviceWorker.register('service-worker.js').catch((e) => console.log('SW no registrado:', e));
   });
 }
