@@ -2,8 +2,8 @@ const CACHE_NAME = 'compas-cache-v21';
 const FILES_TO_CACHE = [
   './index.html',
   './manifest.json',
-  './icon-192.png',
-  './icon-512.png'
+  './icono-192.png',
+  './icono-512.png'
 ];
 
 self.addEventListener('install', (event) => {
