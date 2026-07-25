@@ -1998,7 +1998,7 @@ populateInstrumentSelect(document.getElementById('sup_instrument'));
 renderNavLock();
 
 /* ============ PWA: registrar service worker ============ */
-if ('serviceWorker' in navigator
+if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
     navigator.serviceWorker.register('service-worker.js').catch((e) => console.log('SW no registrado:', e));
   });
