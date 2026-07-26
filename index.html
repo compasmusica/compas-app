@@ -1,0 +1,2040 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Compás — Clases de música cerca de ti</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#FBF8F2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Compás">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#FBF8F2;
+    --ink-2:#FFFFFF;
+    --paper:#F6F1E7;
+    --paper-dim:#e9e2d3;
+    --brass:#B8863A;
+    --brass-bright:#D9A64F;
+    --teal:#2F5D8A;
+    --teal-bright:#4A7FB5;
+    --text-warm:#20242E;
+    --text-dim:#6B6B72;
+    --danger:#C1543F;
+    --radius:14px;
+    --shadow:0 8px 24px rgba(32,36,46,0.08);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--ink);
+    color:var(--text-warm);
+    font-family:'Work Sans', sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  h1,h2,h3{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  .mono{
+    font-family:'IBM Plex Mono', monospace;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    font-size:11px;
+  }
+  button{font-family:inherit;cursor:pointer;}
+  input,select,textarea{font-family:inherit;}
+
+  #app{max-width:480px;margin:0 auto;min-height:100vh;position:relative;background:var(--ink);}
+
+  .staff{position:relative;height:56px;margin:0 24px;}
+  .staff .line{position:absolute;left:0;right:0;height:1px;background:rgba(32,36,46,0.16);}
+  .staff .line:nth-child(1){top:8px;}
+  .staff .line:nth-child(2){top:20px;}
+  .staff .line:nth-child(3){top:32px;}
+  .staff .line:nth-child(4){top:44px;}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 8px;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand-mark{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--brass),var(--brass-bright));display:flex;align-items:center;justify-content:center;color:var(--text-warm);font-weight:700;font-family:'Fraunces',serif;flex-shrink:0;}
+  .brand h1{font-size:20px;color:var(--text-warm);}
+  .brand .tag{font-size:11px;color:var(--brass-bright);margin-top:1px;}
+
+  .auth-widget{display:flex;align-items:center;gap:8px;}
+  .credits-badge{
+    display:flex;align-items:center;gap:5px;background:var(--ink-2);
+    border:1px solid rgba(201,151,63,0.3);border-radius:999px;
+    padding:6px 11px;font-size:12px;color:var(--brass-bright);font-weight:600;
+    font-family:'IBM Plex Mono';
+  }
+  .login-link{font-size:12.5px;color:var(--text-dim);background:none;border:none;text-decoration:underline;}
+
+  .view{display:none;padding:0 24px 100px;}
+  .view.view-flush{padding:0;display:none;flex-direction:column;}
+  .view.view-flush.active{display:flex;position:fixed;top:0;left:0;right:0;z-index:60;background:var(--ink);height:100vh;height:100dvh;max-width:480px;margin:0 auto;}
+  .view.active{display:block;}
+
+  .hero{padding:8px 0 20px;}
+  .hero h2{font-size:28px;line-height:1.15;color:var(--text-warm);}
+  .hero p{color:var(--text-dim);font-size:14px;margin-top:8px;line-height:1.5;}
+
+  .cta-row{display:flex;gap:10px;margin-top:18px;}
+  .btn{border:none;border-radius:999px;padding:13px 20px;font-size:14px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:transform .15s ease, opacity .15s ease;}
+  .btn:active{transform:scale(0.97);}
+  .btn-primary{background:var(--brass);color:var(--text-warm);}
+  .btn-primary:hover{background:var(--brass-bright);}
+  .btn-ghost{background:transparent;color:var(--text-warm);border:1px solid rgba(32,36,46,0.25);}
+  .btn-ghost:hover{border-color:var(--brass);color:var(--brass-bright);}
+  .btn-block{width:100%;}
+  .btn-lg{padding:16px 22px;font-size:15px;}
+  .btn:disabled{opacity:0.35;pointer-events:none;}
+  .btn-sm{padding:8px 14px;font-size:12.5px;}
+  .btn-teal{background:var(--teal);color:var(--text-warm);}
+  .btn-teal:hover{background:var(--teal-bright);}
+
+  .filterbar{display:flex;gap:8px;margin:18px 0 14px;overflow-x:auto;padding-bottom:4px;}
+  .chip{flex-shrink:0;padding:8px 14px;border-radius:999px;background:var(--ink-2);border:1px solid rgba(32,36,46,0.12);font-size:13px;color:var(--text-dim);white-space:nowrap;}
+  .chip.active{background:var(--teal);color:var(--text-warm);border-color:var(--teal);}
+
+  .card-list{display:flex;flex-direction:column;gap:12px;margin-top:4px;}
+  .teacher-card{background:var(--ink-2);border-radius:var(--radius);padding:14px;display:flex;gap:12px;border:1px solid rgba(32,36,46,0.06);}
+  .avatar{width:56px;height:56px;border-radius:12px;flex-shrink:0;background:linear-gradient(135deg,var(--teal),var(--teal-bright));display:flex;align-items:center;justify-content:center;font-family:'Fraunces',serif;font-weight:600;font-size:20px;color:var(--text-warm);background-size:cover;background-position:center;}
+  .tcard-body{flex:1;min-width:0;}
+  .tcard-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+  .tcard-name{font-size:15px;font-weight:600;color:var(--text-warm);font-family:'Work Sans';}
+  .tcard-rate{font-family:'IBM Plex Mono';font-size:12px;color:var(--brass-bright);white-space:nowrap;}
+  .tcard-meta{font-size:12.5px;color:var(--text-dim);margin-top:3px;}
+  .tcard-tags{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
+  .tag-pill{font-size:11px;padding:3px 9px;border-radius:999px;background:rgba(201,151,63,0.14);color:var(--brass-bright);}
+  .tag-pill.zone{background:rgba(47,110,104,0.25);color:var(--teal-bright);}
+  .contact-row{margin-top:10px;}
+  .contact-btn{width:100%;justify-content:center;font-size:12.5px;padding:9px 12px;}
+  .contact-revealed{display:flex;align-items:center;gap:8px;background:rgba(47,110,104,0.18);border-radius:999px;padding:9px 12px;font-size:12.5px;color:var(--teal-bright);text-decoration:none;justify-content:center;font-weight:600;}
+  .verified-badge{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--teal);color:var(--text-warm);font-size:10px;vertical-align:middle;}
+  .star{color:rgba(32,36,46,0.2);cursor:pointer;transition:color .15s ease;}
+  .star.on{color:var(--brass-bright);}
+
+  /* Chat interno */
+  .chat-header{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid rgba(32,36,46,0.08);}
+  .chat-back{background:none;border:none;color:var(--text-dim);font-size:20px;padding:4px;}
+  .chat-messages{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:10px;}
+  .msg{max-width:78%;padding:10px 14px;border-radius:16px;font-size:14px;line-height:1.4;}
+  .msg.mine{align-self:flex-end;background:var(--brass);color:var(--text-warm);border-bottom-right-radius:4px;}
+  .msg.other{align-self:flex-start;background:var(--ink-2);color:var(--text-warm);border-bottom-left-radius:4px;}
+  .msg-time{font-size:10px;opacity:0.6;margin-top:3px;display:block;}
+  .meet-btn{display:inline-flex;align-items:center;gap:6px;background:var(--teal);color:#fff;padding:9px 14px;border-radius:999px;font-size:12.5px;font-weight:600;text-decoration:none;margin-top:4px;}
+  .chat-input-row{display:flex;gap:8px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid rgba(32,36,46,0.08);}
+  .chat-input-row input{flex:1;background:var(--ink-2);border:1.5px solid rgba(32,36,46,0.12);border-radius:999px;padding:11px 16px;color:var(--text-warm);font-size:14px;outline:none;}
+  .chat-input-row input:focus{border-color:var(--brass);}
+  .chat-send{background:var(--brass);color:var(--text-warm);border:none;border-radius:50%;width:42px;height:42px;flex-shrink:0;font-size:16px;}
+
+  /* Horarios de disponibilidad */
+  .pausa-banner{background:rgba(193,84,63,0.15);border:1px solid rgba(193,84,63,0.3);border-radius:10px;padding:10px 14px;font-size:12.5px;color:var(--danger);margin-bottom:12px;}
+  .horario-block{display:flex;justify-content:space-between;align-items:center;background:var(--ink-2);border-radius:10px;padding:10px 14px;margin-bottom:8px;font-size:13px;}
+  .horario-block.ocupado{opacity:0.5;}
+  .horario-block-actions{display:flex;gap:8px;}
+  .horario-block-actions button{background:none;border:none;color:var(--text-dim);font-size:15px;padding:2px 4px;}
+  .slot-pill{display:inline-block;padding:9px 14px;border-radius:999px;background:var(--ink-2);border:1.5px solid rgba(32,36,46,0.12);font-size:12.5px;color:var(--text-warm);margin:0 6px 8px 0;cursor:pointer;}
+  .slot-pill.selected{border-color:var(--brass);background:rgba(201,151,63,0.12);color:var(--brass-bright);}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;background:var(--ink-2);border-radius:10px;padding:12px 14px;margin-bottom:14px;}
+  .toggle-switch{width:42px;height:24px;border-radius:999px;background:rgba(32,36,46,0.15);position:relative;cursor:pointer;transition:background .15s ease;flex-shrink:0;}
+  .toggle-switch.on{background:var(--danger);}
+  .toggle-switch .knob{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--text-warm);transition:left .15s ease;}
+  .toggle-switch.on .knob{left:21px;}
+
+  .empty-state{text-align:center;padding:50px 20px;color:var(--text-dim);}
+  .empty-state .icon{font-size:34px;margin-bottom:10px;opacity:0.6;}
+  .empty-state p{font-size:13.5px;line-height:1.5;}
+
+  .bottomnav{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;background:rgba(21,25,34,0.92);backdrop-filter:blur(10px);border-top:1px solid rgba(32,36,46,0.08);display:flex;padding:8px 8px calc(8px + env(safe-area-inset-bottom));}
+  .navbtn{flex:1;background:none;border:none;color:var(--text-dim);display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;border-radius:10px;font-size:10.5px;position:relative;}
+  .navbtn .ic{font-size:19px;}
+  .navbtn.active{color:var(--brass-bright);}
+  .navbtn .lock{position:absolute;top:2px;right:20%;font-size:9px;}
+
+  .wizard-header{display:flex;align-items:center;gap:14px;padding:18px 24px 6px;}
+  .wizard-back{background:none;border:none;color:var(--text-dim);font-size:20px;padding:4px;}
+  .wizard-progress{flex:1;position:relative;height:30px;}
+  .staff-progress{position:relative;height:100%;}
+  .staff-progress .sline{position:absolute;left:0;right:0;height:1px;background:rgba(32,36,46,0.14);}
+  .staff-progress .sline:nth-child(1){top:6px;}
+  .staff-progress .sline:nth-child(2){top:15px;}
+  .staff-progress .sline:nth-child(3){top:24px;}
+  .note{position:absolute;top:10px;width:16px;height:16px;border-radius:50%;background:var(--ink-2);border:2px solid rgba(32,36,46,0.25);transform:translateX(-50%);transition:all .25s ease;}
+  .note.done{background:var(--brass);border-color:var(--brass);}
+  .note.current{background:var(--teal);border-color:var(--teal-bright);width:20px;height:20px;top:8px;box-shadow:0 0 0 4px rgba(47,110,104,0.25);}
+
+  .step{padding:14px 24px 40px;}
+  .step-eyebrow{color:var(--brass-bright);margin-bottom:8px;}
+  .step h2{font-size:24px;color:var(--text-warm);margin-bottom:6px;}
+  .step .hint{color:var(--text-dim);font-size:13.5px;line-height:1.5;margin-bottom:24px;}
+
+  .field{margin-bottom:18px;}
+  .field label{display:block;font-size:12.5px;color:var(--text-dim);margin-bottom:7px;font-weight:500;}
+  .field input[type=text], .field input[type=tel], .field input[type=email], .field input[type=number], .field input[type=url], .field input[type=password], .field textarea, .field select{
+    width:100%;background:var(--ink-2);border:1.5px solid rgba(32,36,46,0.12);border-radius:10px;padding:13px 14px;color:var(--text-warm);font-size:15px;outline:none;transition:border-color .15s ease;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus{border-color:var(--brass);}
+  .field textarea{resize:vertical;min-height:90px;}
+  .field .counter{text-align:right;font-size:11px;color:var(--text-dim);margin-top:4px;font-family:'IBM Plex Mono';}
+  .field .err{color:var(--danger);font-size:12px;margin-top:5px;display:none;}
+
+  .option-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .option-grid.thirds{grid-template-columns:1fr 1fr 1fr;}
+  .option-card{background:var(--ink-2);border:1.5px solid rgba(32,36,46,0.12);border-radius:10px;padding:14px 10px;text-align:center;color:var(--text-dim);font-size:13px;font-weight:500;}
+  .option-card.selected{border-color:var(--brass);color:var(--brass-bright);background:rgba(201,151,63,0.08);}
+
+  .photo-upload{width:100%;aspect-ratio:1.6;border-radius:12px;border:1.5px dashed rgba(32,36,46,0.25);display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-dim);gap:8px;background:var(--ink-2);position:relative;overflow:hidden;}
+  .photo-upload .ic{font-size:26px;}
+  .photo-upload span{font-size:12.5px;}
+  .photo-upload img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+
+  .step-footer{display:flex;gap:10px;padding:6px 24px 30px;}
+
+  .preview-wrap{background:var(--ink-2);border-radius:16px;padding:18px;border:1px solid rgba(201,151,63,0.25);margin-bottom:20px;}
+  .preview-badge{display:flex;align-items:center;gap:6px;color:var(--brass-bright);margin-bottom:14px;}
+
+  .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--teal);color:var(--text-warm);padding:12px 20px;border-radius:999px;font-size:13.5px;font-weight:500;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:all .3s ease;display:flex;align-items:center;gap:8px;white-space:nowrap;z-index:50;max-width:90%;text-align:center;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .toast.error{background:var(--danger);}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(10,12,17,0.7);display:none;align-items:flex-end;justify-content:center;z-index:100;}
+  .modal-overlay.active{display:flex;}
+  .modal{background:var(--ink-2);width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:26px 24px calc(26px + env(safe-area-inset-bottom));animation:slideup .25s ease;max-height:88vh;overflow-y:auto;}
+  @keyframes slideup{from{transform:translateY(30px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+  .modal h3{font-size:19px;color:var(--text-warm);margin-bottom:4px;}
+  .modal .hint{color:var(--text-dim);font-size:13px;margin-bottom:18px;}
+
+  .auth-tabs{display:flex;gap:6px;background:var(--ink);border-radius:10px;padding:4px;margin-bottom:20px;}
+  .auth-tab{flex:1;text-align:center;padding:9px;border-radius:8px;font-size:12.5px;color:var(--text-dim);background:none;border:none;font-weight:600;}
+  .auth-tab.active{background:var(--brass);color:var(--text-warm);}
+
+  .sup-card{background:var(--ink-2);border-radius:var(--radius);padding:14px;border:1px solid rgba(32,36,46,0.06);margin-bottom:12px;}
+  .sup-top{display:flex;justify-content:space-between;align-items:center;}
+  .sup-title{font-weight:600;font-size:14.5px;color:var(--text-warm);}
+  .sup-monto{font-family:'IBM Plex Mono';color:var(--brass-bright);font-size:13px;}
+  .sup-meta{font-size:12px;color:var(--text-dim);margin-top:5px;}
+  .sup-msg{font-size:13px;color:var(--text-dim);margin-top:8px;line-height:1.4;}
+  .sup-postulantes{font-size:11px;color:var(--teal-bright);margin-top:8px;}
+
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px;}
+  .stat-card{background:var(--ink-2);border-radius:var(--radius);padding:16px;border:1px solid rgba(32,36,46,0.06);}
+  .stat-num{font-family:'Fraunces',serif;font-size:28px;font-weight:600;color:var(--brass-bright);}
+  .stat-label{font-size:11.5px;color:var(--text-dim);margin-top:4px;}
+  .admin-section-title{font-size:13px;color:var(--text-dim);margin:24px 0 10px;font-weight:600;}
+  .admin-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid rgba(32,36,46,0.06);font-size:13.5px;}
+  .admin-row:last-child{border-bottom:none;}
+  .admin-row .name{color:var(--text-warm);}
+  .admin-row .meta{color:var(--text-dim);font-size:12px;}
+
+  ::-webkit-scrollbar{display:none;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark"><img src="icono-192.png" alt="Logo Compás" style="width: 58px; height: 58px; border-radius: 50%; object-fit: cover;"></div>
+      <div>
+        <h1>Compás</h1>
+        <div class="tag mono">Egresados del Conservatorio</div>
+      </div>
+    </div>
+    <div class="auth-widget" id="authWidget">
+      <button class="login-link" onclick="openAuthModal('login')">Iniciar sesión</button>
+    </div>
+  </div>
+
+  <!-- ===== VIEW: EXPLORAR ===== -->
+  <div class="view active" id="view-explorar">
+    <div class="hero">
+      <h2>Encuentra a tu profesor de música, cerca de ti.</h2>
+      <p>Clases con egresados y estudiantes del conservatorio, filtradas por tu zona.</p>
+    </div>
+    <div class="filterbar" id="filterbar"></div>
+    <div class="card-list" id="teacherList">
+      <div class="empty-state"><div class="icon">♪</div><p>Cargando profesores…</p></div>
+    </div>
+  </div>
+
+  <!-- ===== VIEW: ENSEÑAR ===== -->
+  <div class="view" id="view-ensenar">
+    <div class="hero">
+      <h2>Llena tus huecos de horario. Enseña lo que sabes.</h2>
+      <p>Publica tu perfil, define tu zona y tu tarifa. Los alumnos te contactan directo, sin intermediarios raros.</p>
+    </div>
+    <div class="staff"><div class="line"></div><div class="line"></div><div class="line"></div><div class="line"></div></div>
+    <div class="cta-row" style="margin-top:14px;">
+      <button class="btn btn-primary btn-block btn-lg" onclick="startWizard()">Crear mi perfil</button>
+    </div>
+    <div id="myProfilePreview" style="margin-top:24px;"></div>
+  </div>
+
+  <!-- ===== VIEW: WIZARD ===== -->
+  <div class="view" id="view-wizard">
+    <div class="wizard-header">
+      <button class="wizard-back" onclick="prevStep()">←</button>
+      <div class="wizard-progress"><div class="staff-progress" id="staffProgress"></div></div>
+    </div>
+    <div id="stepContainer"></div>
+  </div>
+
+  <!-- ===== VIEW: SUPLENCIAS (gremio) ===== -->
+  <div class="view" id="view-suplencias">
+    <div class="hero">
+      <h2>Bolsa de Suplencias</h2>
+      <p>¿Cruce de horario o un evento? Publica y que un colega del gremio te cubra.</p>
+    </div>
+    <div class="cta-row">
+      <button class="btn btn-teal btn-block" onclick="openSuplenciaForm()">Publicar suplencia</button>
+    </div>
+    <div class="card-list" id="suplenciaList" style="margin-top:18px;"></div>
+  </div>
+
+  <!-- ===== VIEW: MIS RESERVAS (alumno) / SOLICITUDES (profesor) ===== -->
+  <div class="view" id="view-misreservas">
+    <div class="hero">
+      <h2>Mis reservas</h2>
+      <p>Aquí ves el estado de tus solicitudes y clases.</p>
+    </div>
+    <div class="card-list" id="misReservasList"></div>
+  </div>
+
+  <!-- ===== VIEW: CHAT INTERNO ===== -->
+  <div class="view view-flush" id="view-chat">
+    <div class="chat-header">
+      <button class="chat-back" onclick="closeChat()">←</button>
+      <div class="tcard-name" id="chat_otro_nombre" style="font-size:16px;">—</div>
+    </div>
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input-row">
+      <input type="text" id="chatInput" placeholder="Escribe un mensaje..." maxlength="500" onkeydown="if(event.key==='Enter') sendChatMessage();" onfocus="setTimeout(ajustarAlturaChat, 300)">
+      <button class="chat-send" onclick="sendChatMessage()">➤</button>
+    </div>
+  </div>
+
+  <!-- ===== VIEW: PANEL DE ADMINISTRADOR (oculto, solo visible para esAdmin) ===== -->
+  <div class="view" id="view-admin">
+    <div class="hero">
+      <h2>Panel</h2>
+      <p>Solo tú ves esto.</p>
+    </div>
+    <div id="adminStats">
+      <div class="empty-state"><div class="icon">◐</div><p>Cargando estadísticas…</p></div>
+    </div>
+  </div>
+
+  <div class="bottomnav">
+    <button class="navbtn active" data-nav="explorar" onclick="switchView('explorar')"><span class="ic">♪</span>Explorar</button>
+    <button class="navbtn" data-nav="ensenar" onclick="switchView('ensenar')"><span class="ic">✎</span>Enseñar</button>
+    <button class="navbtn" data-nav="suplencias" onclick="goSuplencias()"><span class="ic">⚑</span>Suplencias</button>
+    <button class="navbtn" data-nav="cuenta" onclick="openAccountOrAuth()"><span class="ic">◐</span>Mi cuenta</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- ===== MODAL: ELEGIR ROL (primer contacto, sin sesión) ===== -->
+  <div class="modal-overlay" id="roleChoiceModal">
+    <div class="modal">
+      <h3>¿Qué quieres hacer en Compás?</h3>
+      <div class="hint">Elige una opción para continuar.</div>
+      <button class="btn btn-primary btn-block btn-lg" onclick="closeRoleChoice(); openAuthModal('register');">Quiero tomar clases</button>
+      <button class="btn btn-teal btn-block btn-lg" style="margin-top:10px;" onclick="closeRoleChoice(); startWizard();">Quiero enseñar</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:16px;" onclick="closeRoleChoice(); openAuthModal('login');">Ya tengo cuenta, iniciar sesión</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeRoleChoice()">Cerrar</button>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: AUTH (login / registro alumno) ===== -->
+  <div class="modal-overlay" id="authModal">
+    <div class="modal">
+      <div class="auth-tabs">
+        <button class="auth-tab" id="tabLogin" onclick="setAuthTab('login')">Ya tengo cuenta</button>
+        <button class="auth-tab" id="tabRegister" onclick="setAuthTab('register')">Crear cuenta de alumno</button>
+      </div>
+
+      <div id="authFormLogin">
+        <h3>Inicia sesión</h3>
+        <div class="hint">Entra para contactar profesores y ver tus créditos.</div>
+        <div class="field"><label>Correo</label><input type="email" id="l_email" placeholder="tucorreo@ejemplo.com"></div>
+        <div class="field"><label>Contraseña</label><input type="password" id="l_pass" placeholder="••••••••"></div>
+        <button class="btn btn-primary btn-block btn-lg" onclick="doLogin()">Ingresar</button>
+      </div>
+
+      <div id="authFormRegister" style="display:none;">
+        <h3>Crea tu cuenta de alumno</h3>
+        <div class="hint">Explora perfiles y solicita clases gratis.</div>
+        <div class="field"><label>Nombre</label><input type="text" id="s_name" placeholder="Tu nombre"></div>
+        <div class="field"><label>Correo</label><input type="email" id="s_email" placeholder="tucorreo@ejemplo.com"></div>
+        <div class="field"><label>Contraseña</label><input type="password" id="s_pass" placeholder="Mínimo 6 caracteres"></div>
+        <div class="field"><label>Teléfono / WhatsApp</label><input type="tel" id="s_phone" placeholder="+51 999 999 999"></div>
+        <div class="field"><label>Tu zona</label><select id="s_zone"><option value="">Selecciona tu distrito</option></select></div>
+        <button class="btn btn-primary btn-block btn-lg" onclick="saveStudent()">Registrarme</button>
+        <p style="font-size:11px;color:var(--text-dim);margin-top:12px;line-height:1.5;">Al registrarte aceptas que el administrador del gremio puede revisar conversaciones internas en caso de disputas o reportes, para proteger la seguridad de la comunidad.</p>
+      </div>
+
+      <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeAuthModal()">Cerrar</button>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: CUENTA (usuario logueado) ===== -->
+  <div class="modal-overlay" id="accountModal">
+    <div class="modal">
+      <h3 id="acc_name">—</h3>
+      <div class="hint" id="acc_role">—</div>
+      <button class="btn btn-teal btn-block" onclick="closeAccountModal(); switchView('misreservas'); loadMyReservas();">Mis reservas</button>
+      <button id="acc_admin_btn" class="btn btn-ghost btn-block" style="margin-top:10px;display:none;" onclick="goAdmin()">Panel de administrador</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="doLogout()">Cerrar sesión</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeAccountModal()">Cerrar</button>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: PUBLICAR SUPLENCIA ===== -->
+  <div class="modal-overlay" id="suplenciaModal">
+    <div class="modal">
+      <h3>Publicar suplencia</h3>
+      <div class="hint">Visible para todo el gremio.</div>
+      <div class="field"><label>Instrumento</label><select id="sup_instrument"></select></div>
+      <div class="field"><label>Distrito</label><select id="sup_zone"></select></div>
+      <div class="field"><label>Pago ofrecido (S/)</label><input type="number" id="sup_monto" placeholder="Ej. 40"></div>
+      <div class="field"><label>Mensaje</label><textarea id="sup_msg" maxlength="140" placeholder="Ej. Clase particular, sábado 4pm, alumno intermedio"></textarea></div>
+      <div class="cta-row">
+        <button class="btn btn-ghost btn-block" onclick="closeSuplenciaForm()">Cancelar</button>
+        <button class="btn btn-primary btn-block" onclick="submitSuplencia()">Publicar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: SOLICITAR HORARIO / PAGAR (comparten estructura) ===== -->
+  <div class="modal-overlay" id="reservaModal">
+    <div class="modal">
+      <h3 id="reservaModalTitle">Solicitar horario</h3>
+      <div id="reserva_body"></div>
+      <div class="cta-row" style="margin-top:18px;">
+        <button class="btn btn-ghost btn-block" onclick="closeReservaModal()">Cancelar</button>
+        <button class="btn btn-primary btn-block" id="reservaModalBtn" onclick="submitReserva()">Enviar solicitud</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: CALIFICAR CLASE ===== -->
+  <div class="modal-overlay" id="calificarModal">
+    <div class="modal">
+      <h3>¿Cómo estuvo tu clase con <span id="calificar_nombre"></span>?</h3>
+      <div class="hint">Tu calificación ayuda a mantener la confianza del gremio.</div>
+      <div id="estrellas_wrap" style="font-size:32px;margin:16px 0;text-align:center;letter-spacing:6px;"></div>
+      <div class="field"><label>Comentario (opcional)</label><textarea id="calif_comentario" maxlength="200" placeholder="Ej. Muy puntual y explica claro"></textarea></div>
+      <div class="cta-row">
+        <button class="btn btn-ghost btn-block" onclick="closeCalificarModal()">Ahora no</button>
+        <button class="btn btn-primary btn-block" onclick="submitCalificacion()">Enviar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: MIS HORARIOS (disponibilidad del profesor) ===== -->
+  <div class="modal-overlay" id="horariosModal">
+    <div class="modal">
+      <h3>Mis horarios</h3>
+      <div class="hint">Marca cuándo estás disponible. El alumno solo verá lo que marques aquí.</div>
+
+      <div class="toggle-row">
+        <div>
+          <div style="font-weight:600;font-size:13.5px;">Pausar disponibilidad</div>
+          <div style="font-size:11.5px;color:var(--text-dim);margin-top:2px;">Nadie podrá solicitarte horario mientras esté activo</div>
+        </div>
+        <div class="toggle-switch" id="pausaToggle" onclick="togglePausa()"><div class="knob"></div></div>
+      </div>
+      <div class="field" id="pausaMsgField" style="display:none;">
+        <label>Mensaje (opcional)</label>
+        <input type="text" id="pausaMensaje" placeholder="Ej. De viaje, vuelvo el 28 de julio">
+      </div>
+
+      <div class="admin-section-title mono">Bloques disponibles</div>
+      <div id="horariosList"></div>
+
+      <div class="admin-section-title mono">Agregar bloque</div>
+      <div class="field"><label>Día</label><select id="horario_dia"></select></div>
+      <div class="cta-row">
+        <div class="field" style="flex:1;"><label>Desde</label><input type="time" id="horario_inicio"></div>
+        <div class="field" style="flex:1;"><label>Hasta</label><input type="time" id="horario_fin"></div>
+      </div>
+      <button class="btn btn-teal btn-block" onclick="agregarBloqueHorario()">+ Agregar bloque</button>
+
+      <button class="btn btn-primary btn-block" style="margin-top:18px;" onclick="guardarHorarios()">Guardar cambios</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeHorariosModal()">Cerrar</button>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: ZONAS ADICIONALES ===== -->
+  <div class="modal-overlay" id="zonasModal">
+    <div class="modal">
+      <h3>Zonas adicionales</h3>
+      <div class="hint">¿A qué otros distritos puedes ir además del tuyo? El costo extra es informativo, se coordina por chat.</div>
+
+      <div class="admin-section-title mono">Tus zonas adicionales</div>
+      <div id="zonasList"></div>
+
+      <div class="admin-section-title mono">Agregar zona</div>
+      <div class="field"><label>Distrito</label><select id="zona_distrito"></select></div>
+      <div class="field"><label>Costo extra (opcional, S/)</label><input type="number" id="zona_costo" placeholder="Ej. 15, o déjalo vacío"></div>
+      <button class="btn btn-teal btn-block" onclick="agregarZonaAdicional()">+ Agregar zona</button>
+
+      <button class="btn btn-primary btn-block" style="margin-top:18px;" onclick="guardarZonas()">Guardar cambios</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeZonasModal()">Cerrar</button>
+    </div>
+  </div>
+
+</div>
+
+<script type="module">
+/* ============================================================
+   COMPÁS — Integración Firebase (Firestore + Authentication)
+   SDK modular v10 vía CDN.
+   ============================================================ */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore, collection, doc, addDoc, setDoc, getDoc, getDocs,
+  onSnapshot, query, where, orderBy, updateDoc, increment, arrayUnion, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  onAuthStateChanged, signOut
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+/* --------------------------------------------------------------
+   1) PEGA AQUÍ TUS CREDENCIALES DE FIREBASE
+   (Firebase Console → Configuración del proyecto → Tus apps → SDK)
+-------------------------------------------------------------- */
+const firebaseConfig = {
+  apiKey: "AIzaSyAjcsq4zEj4b6AS3pBOEiYz2beSYOQd2j8",
+  authDomain: "compas-aacfe.firebaseapp.com",
+  projectId: "compas-aacfe",
+  storageBucket: "compas-aacfe.firebasestorage.app",
+  messagingSenderId: "557122402110",
+  appId: "1:557122402110:web:066f3e26a932aabe319e6f"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+const CREDITOS_INICIALES = 20;
+const COSTO_PUBLICAR_SUPLENCIA = 10;
+const COMISION_PORCENTAJE = 0.10; // 10% para la app, 90% para el profesor
+
+/* Datos de pago manual - EDITA ESTO con tus datos reales */
+const PAGO_YAPE = "991 741 746";
+const PAGO_NOMBRE = "César Paullo Torres";
+
+/* ntfy.sh: notificaciones gratis sin backend. Cambia este topic por uno
+   difícil de adivinar (nadie más debe conocerlo), e instala la app ntfy
+   o suscríbete desde https://ntfy.sh/TU_TOPIC en tu navegador. */
+const NTFY_TOPIC = "compas-aacfe-reservas-x7f2q";
+
+/* ============ DATOS BASE (catálogos, no van a Firestore) ============ */
+const ZONES = ["Callao","Cercado de Lima","San Miguel","Pueblo Libre","Jesús María","Magdalena","Breña","La Victoria","Surquillo","Miraflores","San Isidro","Barranco","Surco","San Borja","La Molina","Los Olivos","San Martín de Porres","Comas","Independencia","Ate","San Juan de Lurigancho","Villa El Salvador"];
+const INSTRUMENTS = ["Piano","Guitarra","Canto","Violín","Viola","Violonchelo","Contrabajo","Batería","Bajo","Cajón","Saxofón","Trompeta","Trombón","Eufonio","Tuba","Corno","Flauta","Clarinete","Charango","Cuatro","Solfeo / Teoría"];
+const MODALIDADES = [{id:"presencial",label:"Presencial"},{id:"virtual",label:"Virtual"},{id:"ambas",label:"Ambas"}];
+
+let TEACHERS = [];
+let SUPLENCIAS = [];
+let activeFilter = "Todos";
+let currentEditingTeacher = null;
+let currentUser = null;   // { uid, email, name, role, creditos, zone, phone }
+let authTab = 'login';
+/* ============ NOTIFICACIÓN A CÉSAR (ntfy.sh, gratis, sin backend) ============ */
+function notificarCesar(titulo, mensaje){
+  try{
+    fetch(`https://ntfy.sh/${NTFY_TOPIC}`, {
+      method: 'POST',
+      body: mensaje,
+      headers: { 'Title': titulo, 'Priority': 'high', 'Tags': 'musical_note' }
+    }).then(res=>{
+      if(!res.ok) console.error('ntfy respondió con error:', res.status);
+    }).catch(err=>console.error('ntfy no se pudo enviar:', err));
+  }catch(err){
+    console.error('ntfy: error al construir la notificación (probablemente el título tiene un carácter no permitido):', err);
+  }
+}
+
+/* ============ AUTH STATE ============ */
+onAuthStateChanged(auth, async (user) => {
+  if(user){
+    const snap = await getDoc(doc(db, "usuarios", user.uid));
+    if(snap.exists()){
+      currentUser = { uid: user.uid, email: user.email, ...snap.data() };
+    } else {
+      currentUser = { uid: user.uid, email: user.email, name: user.email, role: "alumno", creditos: 0 };
+    }
+    if(currentUser.role === 'profesor'){
+      try{
+        const profSnap = await getDoc(doc(db, "profesores", user.uid));
+        if(profSnap.exists()) currentEditingTeacher = { id: user.uid, ...profSnap.data() };
+      }catch(e){ console.error(e); }
+    }
+  } else {
+    currentUser = null;
+    currentEditingTeacher = null;
+  }
+  renderAuthWidget();
+  renderNavLock();
+  renderTeacherList();
+  renderMyProfilePreview();
+  loadMyReservas();
+});
+
+function renderAuthWidget(){
+  const w = document.getElementById('authWidget');
+  if(currentUser){
+    w.innerHTML = `<div class="credits-badge" onclick="openAccountOrAuth()">${initials(currentUser.name||currentUser.email)}</div>`;
+  } else {
+    w.innerHTML = `<button class="login-link" onclick="openAuthModal('login')">Iniciar sesión</button>`;
+  }
+}
+
+function renderNavLock(){
+  const esProfesor = currentUser && currentUser.role === 'profesor';
+
+  // "Enseñar" y "Suplencias" son exclusivas del gremio de profesores.
+  // Un visitante o un alumno solo ven Explorar y Mi cuenta al inicio.
+  const ensenarBtn = document.querySelector('.navbtn[data-nav="ensenar"]');
+  const suplenciasBtn = document.querySelector('.navbtn[data-nav="suplencias"]');
+  if(ensenarBtn) ensenarBtn.style.display = esProfesor ? 'flex' : 'none';
+  if(suplenciasBtn) suplenciasBtn.style.display = esProfesor ? 'flex' : 'none';
+
+  // Si alguien pierde acceso a una vista mientras la tenía abierta, lo regresamos a Explorar.
+  if(!esProfesor){
+    const enVistaRestringida = document.getElementById('view-ensenar').classList.contains('active')
+      || document.getElementById('view-suplencias').classList.contains('active');
+    if(enVistaRestringida) switchView('explorar');
+  }
+}
+
+/* ============ FIRESTORE: PROFESORES (live) ============ */
+const profesoresQ = query(collection(db, "profesores"), orderBy("createdAt", "desc"));
+onSnapshot(profesoresQ, (snap) => {
+  TEACHERS = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  renderFilterbar();
+  renderTeacherList();
+  renderMyProfilePreview();
+}, (err) => {
+  console.error("Error leyendo profesores:", err);
+  document.getElementById('teacherList').innerHTML = `<div class="empty-state"><div class="icon">⚠</div><p>No se pudo conectar a Firebase.<br>Revisa tu firebaseConfig.</p></div>`;
+});
+
+/* ============ FIRESTORE: SUPLENCIAS (live) ============ */
+const suplenciasQ = query(collection(db, "suplencias"), where("estado","==","abierta"), orderBy("createdAt","desc"));
+onSnapshot(suplenciasQ, (snap) => {
+  SUPLENCIAS = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  renderSuplenciaList();
+}, (err) => console.error("Error leyendo suplencias:", err));
+
+/* ============ INIT SELECTS ============ */
+function populateZoneSelect(selectEl){
+  ZONES.forEach(z=>{
+    const o = document.createElement('option');
+    o.value=z; o.textContent=z;
+    selectEl.appendChild(o);
+  });
+}
+function populateInstrumentSelect(selectEl){
+  INSTRUMENTS.forEach(i=>{
+    const o = document.createElement('option');
+    o.value=i; o.textContent=i;
+    selectEl.appendChild(o);
+  });
+}
+
+/* ============ RENDER: FILTROS Y LISTA ============ */
+function renderFilterbar(){
+  const bar = document.getElementById('filterbar');
+  bar.innerHTML = "";
+  const aprobados = TEACHERS.filter(t=>t.aprobado===true);
+  const zonasBase = aprobados.map(t=>t.zone);
+  const zonasExtra = aprobados.flatMap(t=>(t.zonasAdicionales||[]).map(z=>z.zona));
+  const zonesUsed = ["Todos", ...new Set([...zonasBase, ...zonasExtra])];
+  zonesUsed.forEach(z=>{
+    const chip = document.createElement('button');
+    chip.className = "chip" + (z===activeFilter ? " active":"");
+    chip.textContent = z;
+    chip.onclick = ()=>{ activeFilter = z; renderFilterbar(); renderTeacherList(); };
+    bar.appendChild(chip);
+  });
+}
+
+function initials(name){ return (name||"?").split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase(); }
+
+function renderTeacherList(){
+  const list = document.getElementById('teacherList');
+  const aprobados = TEACHERS.filter(t=>t.aprobado === true);
+  const filtered = activeFilter==="Todos" ? aprobados : aprobados.filter(t=>
+    t.zone===activeFilter || (t.zonasAdicionales||[]).some(z=>z.zona===activeFilter)
+  );
+  if(filtered.length===0){
+    list.innerHTML = `<div class="empty-state"><div class="icon">♪</div><p>Todavía no hay profesores en esta zona.<br>Sé el primero en publicar tu perfil.</p></div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(t=>{
+    const verificado = (t.clasesCompletadas||0) >= 3;
+    const rating = VALORACIONES_POR_PROFESOR[t.id];
+    const ratingHtml = rating ? `<span class="tag-pill" style="background:rgba(201,151,63,0.14);color:var(--brass-bright);">★ ${rating.promedio.toFixed(1)} (${rating.cantidad})</span>` : '';
+    const pausaHtml = t.pausado ? `<span class="tag-pill" style="background:rgba(193,84,63,0.18);color:var(--danger);">En pausa</span>` : '';
+    // Si estamos filtrando por una zona que no es la suya, pero la cubre como adicional, avisamos.
+    const zonaExtra = activeFilter!=="Todos" && activeFilter!==t.zone
+      ? (t.zonasAdicionales||[]).find(z=>z.zona===activeFilter) : null;
+    const zonaExtraHtml = zonaExtra
+      ? `<span class="tag-pill" style="background:rgba(47,110,104,0.16);color:var(--teal-bright);">También disponible en ${zonaExtra.zona}${zonaExtra.costo ? ` (+S/${zonaExtra.costo})` : ''}</span>` : '';
+    return `
+    <div class="teacher-card">
+      <div class="avatar" style="${t.photo ? `background-image:url(${t.photo})`:''}">${t.photo?'':initials(t.name)}</div>
+      <div class="tcard-body">
+        <div class="tcard-top">
+          <div class="tcard-name">${t.name}${verificado ? ' <span class="verified-badge" title="Verificado: 3+ clases en Compás">✓</span>' : ''}</div>
+          <div class="tcard-rate">S/ ${t.rate}/h</div>
+        </div>
+        <div class="tcard-meta">${(t.instruments||[]).join(' · ')}</div>
+        <div class="tcard-tags">
+          <span class="tag-pill zone">${t.zone}</span>
+          <span class="tag-pill">${MODALIDADES.find(m=>m.id===t.modalidad)?.label || t.modalidad}</span>
+          ${ratingHtml}
+          ${pausaHtml}
+          ${zonaExtraHtml}
+        </div>
+        <div class="contact-row"><button class="btn btn-teal contact-btn" onclick="event.stopPropagation(); openSolicitudModal('${t.id}')">Solicitar horario</button></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ============ VALORACIONES (calificación del alumno al profesor) ============ */
+let VALORACIONES_POR_PROFESOR = {};
+const valoracionesQ = collection(db, "valoraciones");
+onSnapshot(valoracionesQ, (snap) => {
+  const acumulado = {};
+  snap.forEach(d=>{
+    const v = d.data();
+    if(!acumulado[v.profesorId]) acumulado[v.profesorId] = {suma:0, cantidad:0};
+    acumulado[v.profesorId].suma += v.calificacion;
+    acumulado[v.profesorId].cantidad += 1;
+  });
+  VALORACIONES_POR_PROFESOR = {};
+  Object.entries(acumulado).forEach(([pid, d])=>{
+    VALORACIONES_POR_PROFESOR[pid] = { promedio: d.suma/d.cantidad, cantidad: d.cantidad };
+  });
+  renderTeacherList();
+}, (err)=>console.error(err));
+
+/* ============ RESERVAS: solicitud → confirmación → pago → calificación ============ */
+let solicitudTeacher = null;
+let pagoReservaId = null;
+let comprobanteData = null;
+let calificacionReserva = null;
+let estrellasSeleccionadas = 0;
+
+let slotSeleccionado = null;
+
+window.openSolicitudModal = function(teacherId){
+  if(!currentUser){ toast('Si quieres reservar una clase, primero regístrate como alumno', true); openAuthModal('register'); return; }
+  if(currentUser.role !== 'alumno'){ toast('Solo los alumnos pueden solicitar clases', true); return; }
+  solicitudTeacher = TEACHERS.find(t=>t.id===teacherId);
+  if(!solicitudTeacher) return;
+  pagoReservaId = null;
+  slotSeleccionado = null;
+  document.getElementById('reservaModalTitle').textContent = 'Solicitar horario';
+  document.getElementById('reservaModalBtn').textContent = 'Enviar solicitud';
+
+  if(solicitudTeacher.pausado){
+    document.getElementById('reserva_body').innerHTML = `
+      <div class="pausa-banner">${solicitudTeacher.name} no está tomando solicitudes esta semana${solicitudTeacher.pausaMensaje ? ': '+solicitudTeacher.pausaMensaje : '.'}</div>`;
+    document.getElementById('reservaModalBtn').style.display = 'none';
+    document.getElementById('reservaModal').classList.add('active');
+    return;
+  }
+  document.getElementById('reservaModalBtn').style.display = 'block';
+
+  const disponibles = (solicitudTeacher.horarios || []).filter(b=>b.estado==='disponible');
+  const porDia = {};
+  disponibles.forEach(b=>{ (porDia[b.dia] = porDia[b.dia]||[]).push(b); });
+  const diasOrdenados = DIAS_SEMANA.filter(d=>porDia[d]);
+
+  const slotsHtml = disponibles.length
+    ? `<div class="field"><label>Elige un horario disponible</label>
+        ${diasOrdenados.map(dia=>`
+          <div style="margin-bottom:10px;">
+            <div class="mono" style="color:var(--text-dim);font-size:11px;margin-bottom:6px;">${dia}</div>
+            ${porDia[dia].map(b=>`<span class="slot-pill" id="slot_${b.id}" onclick="seleccionarSlot('${b.id}','${b.dia} ${b.inicio}–${b.fin}')">${b.inicio}–${b.fin}</span>`).join('')}
+          </div>
+        `).join('')}
+      </div>
+      <div class="field">
+        <label>¿Cuántas semanas seguidas?</label>
+        <select id="sol_numclases">
+          <option value="1">Solo esta clase</option>
+          <option value="4">4 semanas</option>
+          <option value="8">8 semanas</option>
+          <option value="12">12 semanas</option>
+        </select>
+      </div>`
+    : `<div class="field"><label>¿Qué día y hora te conviene?</label><input type="text" id="sol_horario" placeholder="Ej. Sábados 4pm"></div>`;
+
+  document.getElementById('reserva_body').innerHTML = `
+    <div class="preview-wrap" style="margin-bottom:18px;">
+      <div class="preview-badge mono">Vas a solicitar horario con</div>
+      <div class="tcard-name" style="font-size:17px;">${solicitudTeacher.name}</div>
+      <div class="tcard-meta" style="margin-top:4px;">${(solicitudTeacher.instruments||[]).join(' · ')} · S/ ${solicitudTeacher.rate}/h</div>
+    </div>
+    ${slotsHtml}
+    <div class="field"><label>Mensaje (opcional)</label><textarea id="sol_mensaje" maxlength="140" placeholder="Ej. Soy principiante, busco clases de guitarra"></textarea></div>
+  `;
+  document.getElementById('reservaModal').classList.add('active');
+}
+window.closeReservaModal = function(){ document.getElementById('reservaModal').classList.remove('active'); }
+
+window.seleccionarSlot = function(slotId, texto){
+  slotSeleccionado = { id: slotId, texto };
+  document.querySelectorAll('.slot-pill').forEach(el=>el.classList.remove('selected'));
+  document.getElementById(`slot_${slotId}`).classList.add('selected');
+}
+
+/* Calcula la próxima fecha (YYYY-MM-DD) en que cae un día de la semana dado. */
+function proximaFecha(diaTexto, semanasAdelante){
+  const dias = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"]; // igual a Date.getDay()
+  const targetIdx = dias.indexOf(diaTexto);
+  const hoy = new Date();
+  let diff = (targetIdx - hoy.getDay() + 7) % 7;
+  if(diff === 0) diff = 7; // si cae hoy, damos margen y tomamos la próxima semana
+  const fecha = new Date(hoy);
+  fecha.setDate(hoy.getDate() + diff + (semanasAdelante*7));
+  return fecha.toLocaleDateString('es-PE', { day: 'numeric', month: 'short' });
+}
+
+window.submitSolicitud = async function(){
+  const disponibles = (solicitudTeacher.horarios || []).filter(b=>b.estado==='disponible');
+  let horario, diaSemana = null, numClases = 1;
+  if(disponibles.length){
+    if(!slotSeleccionado){ toast('Elige uno de los horarios disponibles', true); return; }
+    horario = slotSeleccionado.texto;
+    diaSemana = slotSeleccionado.texto.split(' ')[0]; // "Martes 16:00–17:00" -> "Martes"
+    numClases = Number(document.getElementById('sol_numclases')?.value || 1);
+  } else {
+    horario = document.getElementById('sol_horario')?.value.trim();
+    if(!horario){ toast('Cuéntanos qué horario te conviene', true); return; }
+  }
+  const mensaje = document.getElementById('sol_mensaje')?.value.trim() || '';
+
+  try{
+    const precioTotal = solicitudTeacher.rate * numClases;
+    const comision = Math.round(precioTotal * COMISION_PORCENTAJE * 100)/100;
+
+    const clases = numClases > 1
+      ? Array.from({length:numClases}, (_,i)=>({
+          numero: i+1,
+          fecha: diaSemana ? proximaFecha(diaSemana, i) : null,
+          estado: 'pendiente'
+        }))
+      : null;
+
+    await addDoc(collection(db, "reservas"), {
+      alumnoId: currentUser.uid,
+      alumnoNombre: currentUser.name,
+      alumnoPhone: currentUser.phone || '',
+      profesorId: solicitudTeacher.id,
+      profesorNombre: solicitudTeacher.name,
+      profesorPhone: solicitudTeacher.phone || '',
+      precio: precioTotal,
+      precioPorClase: solicitudTeacher.rate,
+      comisionApp: comision,
+      gananciaProfesor: precioTotal - comision,
+      horario, mensaje,
+      slotId: slotSeleccionado ? slotSeleccionado.id : null,
+      esPaquete: numClases > 1,
+      numeroClases: numClases,
+      clases,
+      estado: 'solicitud',
+      pagadoAProfesor: false,
+      calificada: false,
+      createdAt: serverTimestamp()
+    });
+    // Sin alarma aquí a propósito: la coordinación de horario entre alumno y
+    // profesor es privada. Solo te avisamos cuando hay dinero de por medio.
+    closeReservaModal();
+    toast('Solicitud enviada. Revisa "Mis reservas" cuando el profesor confirme.');
+  }catch(e){
+    console.error(e);
+    toast('No se pudo enviar la solicitud, intenta de nuevo', true);
+  }
+}
+
+/* Profesor confirma o rechaza disponibilidad */
+window.confirmarDisponibilidad = async function(reservaId){
+  try{
+    const reservaSnap = await getDoc(doc(db,"reservas",reservaId));
+    const r = reservaSnap.data();
+    await updateDoc(doc(db,"reservas",reservaId), { estado: 'disponible' });
+
+    // Si la solicitud eligió un bloque específico, lo marcamos ocupado
+    // automáticamente para que no se lo pidan dos alumnos a la vez.
+    if(r && r.slotId){
+      const profSnap = await getDoc(doc(db,"profesores",r.profesorId));
+      const horarios = (profSnap.data().horarios || []).map(b =>
+        b.id === r.slotId ? { ...b, estado: 'ocupado' } : b
+      );
+      await updateDoc(doc(db,"profesores",r.profesorId), { horarios });
+    }
+    toast('Disponibilidad confirmada. El alumno ya puede pagar.');
+    loadMyReservas();
+  }catch(e){ console.error(e); toast('No se pudo confirmar', true); }
+}
+window.rechazarSolicitud = async function(reservaId){
+  const ok = confirm('¿Confirmas que ese horario no te funciona?');
+  if(!ok) return;
+  try{
+    await updateDoc(doc(db,"reservas",reservaId), { estado: 'rechazada' });
+    toast('Solicitud rechazada');
+    loadMyReservas();
+  }catch(e){ console.error(e); toast('No se pudo rechazar', true); }
+}
+
+/* Alumno paga una vez el profesor confirmó disponibilidad */
+window.openPagoModal = function(reservaId, precio){
+  pagoReservaId = reservaId;
+  comprobanteData = null;
+  document.getElementById('reservaModalTitle').textContent = 'Pagar clase';
+  document.getElementById('reservaModalBtn').textContent = 'Ya pagué';
+  document.getElementById('reserva_body').innerHTML = `
+    <div class="step-eyebrow mono" style="margin-bottom:10px;">Paso 1 · Transfiere</div>
+    <div class="hint" style="margin-bottom:14px;">Yapea o transfiere S/ ${precio} a:</div>
+    <div class="admin-row"><span class="name">Yape / Plin</span><span class="meta mono">${PAGO_YAPE}</span></div>
+    <div class="admin-row"><span class="name">A nombre de</span><span class="meta">${PAGO_NOMBRE}</span></div>
+    <div class="step-eyebrow mono" style="margin:18px 0 10px;">Paso 2 · Sube tu comprobante</div>
+    <label class="photo-upload" for="reserva_comprobante" style="aspect-ratio:2.2;">
+      <span class="ic">🧾</span><span id="comprobante_label">Toca para subir la captura</span>
+    </label>
+    <input type="file" id="reserva_comprobante" accept="image/*" style="display:none">
+  `;
+  document.getElementById('reserva_comprobante').addEventListener('change', function(e){
+    const file = e.target.files[0];
+    if(file){
+      compressImage(file, 600, 0.7).then(dataUrl=>{
+        comprobanteData = dataUrl;
+        document.getElementById('comprobante_label').textContent = '✓ Comprobante listo';
+      });
+    }
+  });
+  document.getElementById('reservaModal').classList.add('active');
+}
+
+window.submitReserva = async function(){
+  if(pagoReservaId){
+    if(!comprobanteData){ toast('Sube tu comprobante de pago antes de continuar', true); return; }
+    try{
+      await updateDoc(doc(db,"reservas",pagoReservaId), { comprobante: comprobanteData, estado: 'pendiente_pago' });
+      notificarCesar('Comprobante subido', 'Un alumno subió su comprobante. Revisa el panel para confirmar el pago.');
+      closeReservaModal();
+      pagoReservaId = null;
+      toast('¡Listo! En cuanto confirmemos tu pago verás el contacto aquí mismo.');
+      loadMyReservas();
+    }catch(e){
+      console.error(e);
+      toast('No se pudo enviar el comprobante, intenta de nuevo', true);
+    }
+  } else {
+    submitSolicitud();
+  }
+}
+
+/* Cualquiera de las dos partes puede marcar que la clase ya se dictó */
+window.marcarCompletada = async function(reservaId){
+  const ok = confirm('¿Confirmas que la clase ya se dictó?');
+  if(!ok) return;
+  try{
+    await updateDoc(doc(db,"reservas",reservaId), { estado: 'completada' });
+    toast('¡Clase marcada como completada!');
+    loadMyReservas();
+  }catch(e){ console.error(e); toast('No se pudo marcar', true); }
+}
+
+/* Marca una clase específica dentro de un paquete de varias semanas.
+   Cuando ya todas están hechas, el paquete completo pasa a "completada"
+   y recién ahí se habilita la calificación. */
+window.marcarClaseDelPaquete = async function(reservaId, numero){
+  const ok = confirm(`¿Confirmas que la clase ${numero} ya se dictó?`);
+  if(!ok) return;
+  try{
+    const snap = await getDoc(doc(db,"reservas",reservaId));
+    if(!snap.exists()) return;
+    const r = snap.data();
+    const clases = (r.clases||[]).map(c => c.numero===numero ? {...c, estado:'completada'} : c);
+    const todasListas = clases.every(c=>c.estado==='completada');
+    await updateDoc(doc(db,"reservas",reservaId), {
+      clases,
+      estado: todasListas ? 'completada' : 'pago_confirmado'
+    });
+    toast(todasListas ? '¡Paquete completo! 🎵' : 'Clase marcada como hecha');
+    loadMyReservas();
+  }catch(e){ console.error(e); toast('No se pudo marcar', true); }
+}
+
+/* ============ CALIFICACIÓN (solo alumno → profesor) ============ */
+window.openCalificarModal = function(reservaId, profesorId, profesorNombre){
+  calificacionReserva = { reservaId, profesorId };
+  estrellasSeleccionadas = 0;
+  document.getElementById('calificar_nombre').textContent = profesorNombre;
+  renderEstrellas();
+  document.getElementById('calif_comentario').value = '';
+  document.getElementById('calificarModal').classList.add('active');
+}
+window.closeCalificarModal = function(){ document.getElementById('calificarModal').classList.remove('active'); }
+
+function renderEstrellas(){
+  const wrap = document.getElementById('estrellas_wrap');
+  wrap.innerHTML = [1,2,3,4,5].map(n=>
+    `<span class="star ${n<=estrellasSeleccionadas?'on':''}" onclick="setEstrellas(${n})">★</span>`
+  ).join('');
+}
+window.setEstrellas = function(n){ estrellasSeleccionadas = n; renderEstrellas(); }
+
+window.submitCalificacion = async function(){
+  if(estrellasSeleccionadas===0){ toast('Elige de 1 a 5 estrellas', true); return; }
+  try{
+    await addDoc(collection(db,"valoraciones"), {
+      reservaId: calificacionReserva.reservaId,
+      profesorId: calificacionReserva.profesorId,
+      alumnoId: currentUser.uid,
+      calificacion: estrellasSeleccionadas,
+      comentario: document.getElementById('calif_comentario').value.trim(),
+      createdAt: serverTimestamp()
+    });
+    await updateDoc(doc(db,"reservas",calificacionReserva.reservaId), { calificada: true });
+    closeCalificarModal();
+    toast('¡Gracias por tu calificación! 🎵');
+    loadMyReservas();
+  }catch(e){ console.error(e); toast('No se pudo enviar tu calificación', true); }
+}
+
+/* ============ CHAT INTERNO (reemplaza revelar WhatsApp) ============ */
+let chatReservaId = null;
+let chatAlumnoId = null;
+let chatProfesorId = null;
+let chatUnsub = null; // función para desconectar el listener al salir, y no gastar lecturas de más
+
+/* Mantiene el chat ajustado al espacio visible real, para que el teclado
+   del celular no empuje los mensajes fuera de la pantalla. */
+function ajustarAlturaChat(){
+  const vc = document.getElementById('view-chat');
+  if(!vc || !vc.classList.contains('active')) return;
+  const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  vc.style.height = h + 'px';
+  const wrap = document.getElementById('chatMessages');
+  if(wrap) wrap.scrollTop = wrap.scrollHeight;
+}
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize', ajustarAlturaChat);
+}
+
+window.openChat = async function(reservaId, otroNombre){
+  chatReservaId = reservaId;
+  document.getElementById('chat_otro_nombre').textContent = otroNombre;
+  document.getElementById('chatMessages').innerHTML = `<div class="empty-state"><p>Cargando conversación…</p></div>`;
+  switchView('chat');
+  ajustarAlturaChat();
+
+  try{
+    // Necesitamos saber quiénes son las dos partes, para poder guardarlas en
+    // cada mensaje (así las reglas de seguridad no necesitan leer el documento padre).
+    const reservaSnap = await getDoc(doc(db,"reservas",reservaId));
+    if(!reservaSnap.exists()){
+      document.getElementById('chatMessages').innerHTML = `<div class="empty-state"><p>No se encontró esta conversación.</p></div>`;
+      return;
+    }
+    const r = reservaSnap.data();
+    chatAlumnoId = r.alumnoId;
+    chatProfesorId = r.profesorId;
+
+    if(chatUnsub) chatUnsub(); // corta cualquier chat anterior que hubiera quedado abierto
+    const mensajesQ = query(collection(db,"reservas",reservaId,"mensajes"), orderBy("createdAt","asc"));
+    chatUnsub = onSnapshot(mensajesQ, (snap)=>{
+      const wrap = document.getElementById('chatMessages');
+      if(snap.empty){
+        wrap.innerHTML = `<div class="empty-state"><p>Todavía no hay mensajes.<br>Coordina aquí el horario y los detalles.</p></div>`;
+        return;
+      }
+      wrap.innerHTML = snap.docs.map(d=>{
+        const m = d.data();
+        const mia = m.de === currentUser.uid;
+        const hora = m.createdAt?.toDate ? m.createdAt.toDate().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}) : '';
+        return `<div class="msg ${mia?'mine':'other'}">${formatMensaje(m.texto)}<span class="msg-time">${hora}</span></div>`;
+      }).join('');
+      wrap.scrollTop = wrap.scrollHeight;
+    }, (err)=>{
+      console.error(err);
+      document.getElementById('chatMessages').innerHTML = `<div class="empty-state"><div class="icon">⚠</div><p>No se pudo cargar el chat.<br><span style="font-size:11px;">${err.code||err.message||''}</span></p></div>`;
+    });
+  }catch(e){
+    console.error(e);
+    document.getElementById('chatMessages').innerHTML = `<div class="empty-state"><div class="icon">⚠</div><p>No se pudo abrir esta conversación.<br><span style="font-size:11px;">${e.code||e.message||''}</span></p></div>`;
+  }
+}
+
+/* Escapa HTML para que nadie pueda inyectar código dentro del chat */
+function escapeHtml(str){
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* Si el mensaje trae un link de Google Meet, lo convierte en botón.
+   El resto del texto se muestra tal cual (ya escapado, sin riesgo de HTML). */
+function formatMensaje(textoCrudo){
+  const escapado = escapeHtml(textoCrudo);
+  const meetRegex = /(https?:\/\/meet\.google\.com\/[a-zA-Z0-9\-]+)/i;
+  const match = escapado.match(meetRegex);
+  if(match){
+    const antes = escapado.slice(0, match.index).trim();
+    const link = match[1];
+    return `${antes ? antes + '<br>' : ''}<a href="${link}" target="_blank" class="meet-btn">🎥 Unirse a la clase por Google Meet</a>`;
+  }
+  return escapado;
+}
+
+window.closeChat = function(){
+  if(chatUnsub){ chatUnsub(); chatUnsub = null; } // desconecta el listener, deja de gastar lecturas
+  switchView('misreservas');
+  loadMyReservas();
+}
+
+/* Detecta menciones a teléfono, WhatsApp, Yape o Plin — no bloquea el
+   mensaje, solo avisa, porque coordinar fuera de la app pone en riesgo
+   la devolución del dinero si algo sale mal. */
+function contieneRiesgoDePago(texto){
+  return /\b\d{9}\b/.test(texto) || /whatsapp|yape|plin/i.test(texto);
+}
+
+window.sendChatMessage = async function(){
+  const input = document.getElementById('chatInput');
+  const texto = input.value.trim();
+  if(!texto || !chatReservaId) return;
+  input.value = '';
+
+  if(contieneRiesgoDePago(texto)){
+    toast('Por tu seguridad y para garantizar la devolución de tu dinero, mantén la comunicación en el chat de Compás', true);
+  }
+
+  try{
+    await addDoc(collection(db,"reservas",chatReservaId,"mensajes"), {
+      de: currentUser.uid,
+      deNombre: currentUser.name,
+      texto,
+      alumnoId: chatAlumnoId,
+      profesorId: chatProfesorId,
+      createdAt: serverTimestamp()
+    });
+  }catch(e){ console.error(e); toast('No se pudo enviar el mensaje', true); }
+}
+
+/* ============ MIS RESERVAS (alumno) + SOLICITUDES (profesor) ============ */
+async function loadMyReservas(){
+  if(!currentUser) return;
+  try{
+    if(currentUser.role === 'alumno'){
+      const q = query(collection(db,"reservas"), where("alumnoId","==",currentUser.uid));
+      const snap = await getDocs(q);
+      const misReservas = [];
+      snap.forEach(d=> misReservas.push({ id:d.id, ...d.data() }));
+      renderMisReservas(misReservas, 'alumno');
+    } else if(currentUser.role === 'profesor'){
+      const q = query(collection(db,"reservas"), where("profesorId","==",currentUser.uid));
+      const snap = await getDocs(q);
+      const misSolicitudes = [];
+      snap.forEach(d=> misSolicitudes.push({ id:d.id, ...d.data() }));
+      renderMisReservas(misSolicitudes, 'profesor');
+    }
+  }catch(e){ console.error(e); }
+}
+
+function renderMisReservas(lista, rol){
+  const wrap = document.getElementById('misReservasList');
+  if(!wrap) return;
+  lista.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+  if(lista.length===0){
+    wrap.innerHTML = `<div class="empty-state"><p>Todavía no tienes reservas.</p></div>`;
+    return;
+  }
+  wrap.innerHTML = lista.map(r=>{
+    const otro = rol==='alumno' ? r.profesorNombre : r.alumnoNombre;
+    let estadoTxt = '', accion = '';
+    if(r.estado==='solicitud'){
+      estadoTxt = rol==='alumno' ? 'Esperando que confirme disponibilidad' : `Pidió: "${r.horario}"`;
+      if(rol==='profesor') accion = `<div class="cta-row"><button class="btn btn-teal btn-sm" onclick="confirmarDisponibilidad('${r.id}')">Confirmar</button><button class="btn btn-ghost btn-sm" onclick="rechazarSolicitud('${r.id}')">No puedo</button></div>`;
+    } else if(r.estado==='disponible'){
+      estadoTxt = rol==='alumno' ? 'Horario confirmado, falta tu pago' : 'Confirmaste, esperando pago';
+      if(rol==='alumno') accion = `<button class="btn btn-teal btn-sm" style="margin-top:8px;" onclick="openPagoModal('${r.id}', ${r.precio})">Pagar ahora</button>`;
+    } else if(r.estado==='pendiente_pago'){
+      estadoTxt = 'Verificando tu pago';
+    } else if(r.estado==='pago_confirmado'){
+      if(r.esPaquete && r.clases){
+        const pendientesTxt = r.clases.filter(c=>c.estado==='pendiente').length;
+        estadoTxt = `Paquete de ${r.numeroClases} clases · ${pendientesTxt} por dictar`;
+        accion = `<div style="margin-top:8px;">` + r.clases.map(c=>
+          c.estado==='completada'
+            ? `<div class="admin-row"><span class="name">Clase ${c.numero} · ${c.fecha||''}</span><span class="meta">✓ Completada</span></div>`
+            : `<div class="admin-row"><span class="name">Clase ${c.numero} · ${c.fecha||''}</span><button class="btn btn-ghost btn-sm" onclick="marcarClaseDelPaquete('${r.id}',${c.numero})">Marcar hecha</button></div>`
+        ).join('') + `</div>`;
+      } else {
+        estadoTxt = `Clase confirmada`;
+        accion = `<button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="marcarCompletada('${r.id}')">Marcar clase completada</button>`;
+      }
+    } else if(r.estado==='completada'){
+      estadoTxt = 'Clase completada';
+      if(rol==='alumno' && !r.calificada) accion = `<button class="btn btn-teal btn-sm" style="margin-top:8px;" onclick="openCalificarModal('${r.id}','${r.profesorId}','${r.profesorNombre}')">Calificar clase</button>`;
+    } else if(r.estado==='rechazada'){
+      estadoTxt = 'Ese horario no funcionó. Intenta con otro.';
+    }
+    const chatBtn = r.estado!=='rechazada'
+      ? `<button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="openChat('${r.id}','${otro.replace(/'/g,"")}')">💬 Chat</button>`
+      : '';
+    return `<div class="sup-card">
+      <div class="sup-top"><span class="sup-title">${otro}</span><span class="sup-monto">S/ ${r.precio}</span></div>
+      <div class="sup-meta">${estadoTxt}</div>
+      <div class="cta-row" style="margin-top:2px;">${accion}${chatBtn}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ============ NAV ============ */
+window.switchView = function(name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
+  const btn = document.querySelector(`.navbtn[data-nav="${name}"]`);
+  if(btn) btn.classList.add('active');
+  if(name==='ensenar') renderMyProfilePreview();
+
+  // El chat usa toda la pantalla; ocultamos la barra inferior para que
+  // el cuadro de escribir no quede tapado detrás de ella.
+  const nav = document.querySelector('.bottomnav');
+  if(nav) nav.style.display = (name==='chat') ? 'none' : 'flex';
+}
+
+window.goSuplencias = function(){
+  if(!currentUser){ toast('Inicia sesión para ver la bolsa de suplencias', true); openAuthModal('login'); return; }
+  if(currentUser.role !== 'profesor'){ toast('La bolsa de suplencias es exclusiva para profesores del gremio', true); return; }
+  switchView('suplencias');
+}
+
+/* ============ WIZARD (crear perfil de profesor) ============ */
+const STEPS = ['nombre','foto','instrumentos','zona','tarifa','modalidad','bio','video','contacto','preview'];
+let stepIndex = 0;
+let draft = {name:"",photo:"",instruments:[],zone:"",rate:"",modalidad:"",bio:"",videoUrl:"",phone:"",email:"",pass:""};
+
+window.startWizard = function(existing){
+  draft = existing
+    ? {name:existing.name||"", photo:existing.photo||"", instruments:[...(existing.instruments||[])], zone:existing.zone||"", rate:existing.rate||"", modalidad:existing.modalidad||"", bio:existing.bio||"", videoUrl:existing.videoUrl||"", phone:existing.phone||"", email:"", pass:""}
+    : {name:"",photo:"",instruments:[],zone:"",rate:"",modalidad:"",bio:"",videoUrl:"",phone:"",email:"",pass:""};
+  stepIndex = 0;
+  switchView('wizard');
+  renderStep();
+}
+
+window.editMyProfile = function(){
+  if(!currentEditingTeacher){ toast('Todavía no hay un perfil para editar', true); return; }
+  startWizard(currentEditingTeacher);
+}
+
+function renderProgress(){
+  const wrap = document.getElementById('staffProgress');
+  const total = STEPS.length;
+  let html = `<div class="sline"></div><div class="sline"></div><div class="sline"></div>`;
+  const spacing = 100/(total+1);
+  STEPS.forEach((s,i)=>{
+    const left = spacing*(i+1);
+    let cls = 'note';
+    if(i<stepIndex) cls+=' done';
+    if(i===stepIndex) cls+=' current';
+    html += `<div class="${cls}" style="left:${left}%"></div>`;
+  });
+  wrap.innerHTML = html;
+}
+
+window.prevStep = function(){
+  if(stepIndex===0){ switchView('ensenar'); return; }
+  stepIndex--; renderStep();
+}
+function nextStep(){ if(stepIndex < STEPS.length-1){ stepIndex++; renderStep(); } }
+
+window.toggleInstrument = function(inst){
+  const i = draft.instruments.indexOf(inst);
+  if(i>-1) draft.instruments.splice(i,1); else draft.instruments.push(inst);
+  renderStep();
+}
+
+window.setModalidad = function(id){ draft.modalidad = id; renderStep(); }
+
+function renderStep(){
+  renderProgress();
+  const step = STEPS[stepIndex];
+  const c = document.getElementById('stepContainer');
+  let html = "";
+
+  if(step==='nombre'){
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 1 de ${STEPS.length}</div><h2>¿Cómo te llamas?</h2><div class="hint">Así te van a ver los alumnos.</div>
+      <div class="field"><label>Nombre completo</label><input type="text" id="in_name" value="${draft.name}" placeholder="Ej. César Torres"></div></div>`;
+  }
+  else if(step==='foto'){
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 2 de ${STEPS.length}</div><h2>Sube una foto tuya</h2><div class="hint">Una foto clara aumenta la confianza del alumno.</div>
+      <label class="photo-upload" for="in_photo">${draft.photo ? `<img src="${draft.photo}">` : `<span class="ic">📷</span><span>Toca para subir foto</span>`}</label>
+      <input type="file" id="in_photo" accept="image/*" style="display:none"></div>`;
+  }
+  else if(step==='instrumentos'){
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 3 de ${STEPS.length}</div><h2>¿Qué enseñas?</h2><div class="hint">Elige uno o varios instrumentos.</div>
+      <div class="option-grid">${INSTRUMENTS.map(i=>`<div class="option-card ${draft.instruments.includes(i)?'selected':''}" onclick="toggleInstrument('${i}')">${i}</div>`).join('')}</div></div>`;
+  }
+  else if(step==='zona'){
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 4 de ${STEPS.length}</div><h2>¿Desde qué zona enseñas?</h2><div class="hint">Así te encuentran alumnos cerca, sin gastar de más en pasaje.</div>
+      <div class="field"><label>Distrito</label><select id="in_zone"><option value="">Selecciona tu distrito</option>${ZONES.map(z=>`<option value="${z}" ${draft.zone===z?'selected':''}>${z}</option>`).join('')}</select></div></div>`;
+  }
+  else if(step==='tarifa'){
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 5 de ${STEPS.length}</div><h2>¿Cuánto cobras por hora?</h2><div class="hint">Puedes cambiarlo cuando quieras.</div>
+      <div class="field"><label>Tarifa por hora (S/)</label><input type="number" id="in_rate" value="${draft.rate}" placeholder="Ej. 40"></div></div>`;
+  }
+  else if(step==='modalidad'){
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 6 de ${STEPS.length}</div><h2>¿Cómo das tus clases?</h2>
+      <div class="option-grid thirds">${MODALIDADES.map(m=>`<div class="option-card ${draft.modalidad===m.id?'selected':''}" onclick="setModalidad('${m.id}')">${m.label}</div>`).join('')}</div></div>`;
+  }
+  else if(step==='bio'){
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 7 de ${STEPS.length}</div><h2>Cuéntanos tu historia, corto</h2><div class="hint">Formación, experiencia. Máximo 160 caracteres.</div>
+      <div class="field"><label>Breve historia</label><textarea id="in_bio" maxlength="160" oninput="document.getElementById('bioCount').textContent=this.value.length">${draft.bio}</textarea><div class="counter"><span id="bioCount">${draft.bio.length}</span>/160</div></div></div>`;
+  }
+  else if(step==='video'){
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 8 de ${STEPS.length}</div><h2>¿Tienes un video tocando o enseñando?</h2><div class="hint">Opcional. Pega el link de YouTube o Drive.</div>
+      <div class="field"><label>Link del video</label><input type="url" id="in_video" value="${draft.videoUrl}" placeholder="https://youtube.com/..."></div></div>`;
+  }
+  else if(step==='contacto'){
+    if(auth.currentUser){
+      html = `<div class="step"><div class="step-eyebrow mono">Paso 9 de ${STEPS.length}</div><h2>¿A qué WhatsApp te contactan?</h2><div class="hint">Ya tienes una cuenta activa — esto solo completa tu perfil de profesor, no crea una cuenta nueva.</div>
+        <div class="field"><label>WhatsApp</label><input type="tel" id="in_phone" value="${draft.phone}" placeholder="+51 999 999 999"></div></div>`;
+    } else {
+      html = `<div class="step"><div class="step-eyebrow mono">Paso 9 de ${STEPS.length}</div><h2>Crea tu cuenta de profesor</h2><div class="hint">La usarás para publicar suplencias y administrar tu perfil.</div>
+        <div class="field"><label>WhatsApp</label><input type="tel" id="in_phone" value="${draft.phone}" placeholder="+51 999 999 999"></div>
+        <div class="field"><label>Correo</label><input type="email" id="in_email" value="${draft.email}" placeholder="tucorreo@ejemplo.com"></div>
+        <div class="field"><label>Contraseña</label><input type="password" id="in_pass" placeholder="Mínimo 6 caracteres"></div>
+        <p style="font-size:11px;color:var(--text-dim);margin-top:4px;line-height:1.5;">Al crear tu cuenta aceptas que el administrador del gremio puede revisar conversaciones internas en caso de disputas o reportes, para proteger la seguridad de la comunidad.</p></div>`;
+    }
+  }
+  else if(step==='preview'){
+    html = `<div class="step"><div class="step-eyebrow mono">Listo</div><h2>Así se ve tu perfil</h2><div class="hint">Revisa que todo esté bien antes de publicarlo.</div>
+      <div class="preview-wrap">
+        <div class="preview-badge mono">Vista previa</div>
+        <div class="teacher-card" style="background:transparent;border:none;padding:0;">
+          <div class="avatar" style="${draft.photo?`background-image:url(${draft.photo})`:''}">${draft.photo?'':(draft.name?initials(draft.name):'?')}</div>
+          <div class="tcard-body">
+            <div class="tcard-top"><div class="tcard-name">${draft.name || 'Tu nombre'}</div><div class="tcard-rate">S/ ${draft.rate||'--'}/h</div></div>
+            <div class="tcard-meta">${draft.instruments.join(' · ')||'Instrumentos'}</div>
+            <div class="tcard-tags"><span class="tag-pill zone">${draft.zone||'Zona'}</span><span class="tag-pill">${draft.modalidad ? MODALIDADES.find(m=>m.id===draft.modalidad).label : 'Modalidad'}</span></div>
+          </div>
+        </div>
+        ${draft.bio ? `<p style="font-size:13px;color:var(--text-dim);margin-top:14px;line-height:1.5;">${draft.bio}</p>`:''}
+      </div>
+      <button class="btn btn-primary btn-block btn-lg" onclick="publishProfile()">Publicar mi perfil</button></div>`;
+  }
+
+  c.innerHTML = html;
+
+  if(step!=='preview'){
+    const footer = document.createElement('div');
+    footer.className = 'step-footer';
+    footer.innerHTML = `<button class="btn btn-primary btn-block btn-lg" id="nextBtn" onclick="collectStepAndNext()">Continuar</button>`;
+    c.appendChild(footer);
+  }
+
+  if(step==='foto'){
+    document.getElementById('in_photo').addEventListener('change', function(e){
+      const file = e.target.files[0];
+      if(file){
+        compressImage(file, 500, 0.7).then(dataUrl=>{
+          draft.photo = dataUrl;
+          renderStep();
+        }).catch(()=>{
+          toast('No se pudo procesar la foto, intenta con otra', true);
+        });
+      }
+    });
+  }
+}
+
+/* Comprime la foto en el navegador antes de guardarla, para que quepa
+   cómodo en el límite de 1MB por documento de Firestore. */
+function compressImage(file, maxWidth, quality){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = (ev)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const scale = Math.min(1, maxWidth / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = ev.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+window.collectStepAndNext = function(){
+  const step = STEPS[stepIndex];
+  if(step==='nombre'){
+    const v = document.getElementById('in_name').value.trim();
+    if(!v){ shake('in_name'); return; }
+    draft.name = v;
+  }
+  else if(step==='instrumentos'){
+    if(draft.instruments.length===0){ toast('Elige al menos un instrumento', true); return; }
+  }
+  else if(step==='zona'){
+    const v = document.getElementById('in_zone').value;
+    if(!v){ shake('in_zone'); return; }
+    draft.zone = v;
+  }
+  else if(step==='tarifa'){
+    const v = document.getElementById('in_rate').value;
+    if(!v){ shake('in_rate'); return; }
+    draft.rate = v;
+  }
+  else if(step==='modalidad'){
+    if(!draft.modalidad){ toast('Elige una modalidad', true); return; }
+  }
+  else if(step==='bio'){
+    draft.bio = document.getElementById('in_bio').value.trim();
+  }
+  else if(step==='video'){
+    draft.videoUrl = document.getElementById('in_video').value.trim();
+  }
+  else if(step==='contacto'){
+    const phone = document.getElementById('in_phone').value.trim();
+    if(!phone){ shake('in_phone'); return; }
+    draft.phone = phone;
+    if(!auth.currentUser){
+      const email = document.getElementById('in_email').value.trim();
+      const pass = document.getElementById('in_pass').value;
+      if(!email || !email.includes('@')){ shake('in_email'); return; }
+      if(!pass || pass.length<6){ shake('in_pass'); return; }
+      draft.email = email; draft.pass = pass;
+    }
+  }
+  nextStep();
+}
+
+function shake(id){
+  const el = document.getElementById(id);
+  el.style.borderColor = 'var(--danger)';
+  setTimeout(()=>{ el.style.borderColor=''; }, 900);
+}
+
+/* ============ PUBLICAR PERFIL: crea cuenta Auth + usuarios + profesores ============ */
+window.publishProfile = async function(){
+  try{
+    let uid, email;
+
+    if(auth.currentUser){
+      // Ya hay una cuenta activa (ej. te registraste como alumno o ya tienes cuenta
+      // de profesor): completamos el perfil sin crear una cuenta nueva.
+      uid = auth.currentUser.uid;
+      email = auth.currentUser.email;
+      try{
+        await updateDoc(doc(db, "usuarios", uid), { role: "profesor" });
+      }catch(e){
+        // Si ya eras profesor, esto no cambia nada y no falla. Si eras alumno,
+        // la regla de seguridad bloquea el cambio de rol por ahora.
+      }
+    } else {
+      const cred = await createUserWithEmailAndPassword(auth, draft.email, draft.pass);
+      uid = cred.user.uid;
+      email = draft.email;
+      await setDoc(doc(db, "usuarios", uid), {
+        name: draft.name,
+        email: draft.email,
+        role: "profesor",
+        creditos: CREDITOS_INICIALES,
+        zone: draft.zone,
+        phone: draft.phone,
+        createdAt: serverTimestamp()
+      });
+    }
+
+    const esEdicion = !!(currentEditingTeacher && currentEditingTeacher.id === uid);
+    const datosProfesor = {
+      name: draft.name,
+      instruments: draft.instruments,
+      zone: draft.zone,
+      rate: Number(draft.rate),
+      modalidad: draft.modalidad,
+      bio: draft.bio,
+      videoUrl: draft.videoUrl,
+      phone: draft.phone,
+      photo: draft.photo
+    };
+    if(!esEdicion){
+      datosProfesor.clasesCompletadas = 0;
+      datosProfesor.createdAt = serverTimestamp();
+      datosProfesor.aprobado = false; // pendiente de revisión manual del admin
+    }
+    await setDoc(doc(db, "profesores", uid), datosProfesor, { merge: true });
+
+    currentUser = { ...currentUser, uid, email, name: draft.name, role: "profesor", zone: draft.zone, phone: draft.phone };
+    currentEditingTeacher = { id: uid, ...draft, rate: Number(draft.rate), aprobado: esEdicion ? currentEditingTeacher?.aprobado : false, clasesCompletadas: esEdicion ? currentEditingTeacher?.clasesCompletadas : 0 };
+    renderAuthWidget();
+    renderNavLock();
+    switchView('ensenar');
+    renderMyProfilePreview();
+    toast(esEdicion ? '¡Perfil actualizado! 🎵' : 'Perfil enviado. En revisión antes de publicarse ✓');
+  }catch(e){
+    console.error(e);
+    let msg = 'No se pudo publicar tu perfil.';
+    if(e.code === 'auth/email-already-in-use') msg = 'Ese correo ya tiene una cuenta. Inicia sesión en vez de crear una nueva.';
+    if(e.code === 'auth/invalid-api-key' || e.code === 'auth/invalid-config') msg = 'Firebase no está configurado todavía (revisa firebaseConfig).';
+    toast(msg, true);
+  }
+}
+
+function renderMyProfilePreview(){
+  const wrap = document.getElementById('myProfilePreview');
+  if(!currentEditingTeacher){ wrap.innerHTML=''; return; }
+  const t = currentEditingTeacher;
+  const pendienteHtml = t.aprobado !== true
+    ? `<div class="pausa-banner" style="background:rgba(201,151,63,0.14);border-color:rgba(201,151,63,0.3);color:var(--brass-bright);">Tu perfil está en revisión. Aún no aparece en "Explorar" — te avisamos apenas se apruebe.</div>`
+    : '';
+  wrap.innerHTML = `<div class="mono" style="color:var(--text-dim);margin-bottom:10px;">Tu perfil</div>
+    ${pendienteHtml}
+    <div class="teacher-card">
+      <div class="avatar" style="${t.photo?`background-image:url(${t.photo})`:''}">${t.photo?'':initials(t.name)}</div>
+      <div class="tcard-body">
+        <div class="tcard-top"><div class="tcard-name">${t.name}</div><div class="tcard-rate">S/ ${t.rate}/h</div></div>
+        <div class="tcard-meta">${(t.instruments||[]).join(' · ')}</div>
+        <div class="tcard-tags"><span class="tag-pill zone">${t.zone}</span><span class="tag-pill">${MODALIDADES.find(m=>m.id===t.modalidad)?.label}</span></div>
+      </div>
+    </div>
+    <button class="btn btn-ghost btn-block" style="margin-top:12px;" onclick="editMyProfile()">Editar mi perfil</button>
+    <button class="btn btn-teal btn-block" style="margin-top:10px;" onclick="openHorariosModal()">Mis horarios</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="openZonasModal()">Zonas adicionales</button>`;
+}
+
+/* ============ MIS HORARIOS (disponibilidad del profesor) ============ */
+const DIAS_SEMANA = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+let horariosDraft = [];
+let pausaDraft = false;
+
+window.openHorariosModal = function(){
+  if(!currentEditingTeacher){ toast('Primero publica tu perfil de profesor', true); return; }
+  horariosDraft = [...(currentEditingTeacher.horarios || [])];
+  pausaDraft = !!currentEditingTeacher.pausado;
+  document.getElementById('pausaMensaje').value = currentEditingTeacher.pausaMensaje || '';
+  populateDiaSelect();
+  renderPausaToggle();
+  renderHorariosList();
+  document.getElementById('horariosModal').classList.add('active');
+}
+window.closeHorariosModal = function(){ document.getElementById('horariosModal').classList.remove('active'); }
+
+function populateDiaSelect(){
+  const sel = document.getElementById('horario_dia');
+  if(sel.options.length) return; // ya está lleno, no repetir
+  DIAS_SEMANA.forEach(d=>{
+    const o = document.createElement('option');
+    o.value = d; o.textContent = d;
+    sel.appendChild(o);
+  });
+}
+
+function renderPausaToggle(){
+  document.getElementById('pausaToggle').classList.toggle('on', pausaDraft);
+  document.getElementById('pausaMsgField').style.display = pausaDraft ? 'block' : 'none';
+}
+window.togglePausa = function(){ pausaDraft = !pausaDraft; renderPausaToggle(); }
+
+function renderHorariosList(){
+  const wrap = document.getElementById('horariosList');
+  if(horariosDraft.length===0){
+    wrap.innerHTML = `<div class="empty-state" style="padding:20px;"><p>Todavía no agregaste bloques.</p></div>`;
+    return;
+  }
+  const porDia = {};
+  horariosDraft.forEach((b,i)=>{ (porDia[b.dia] = porDia[b.dia]||[]).push({...b, _i:i}); });
+  const diasOrdenados = DIAS_SEMANA.filter(d=>porDia[d]);
+
+  wrap.innerHTML = diasOrdenados.map(dia=>`
+    <div style="margin-bottom:10px;">
+      <div class="mono" style="color:var(--text-dim);font-size:11px;margin-bottom:6px;">${dia}</div>
+      ${porDia[dia].map(b=>`
+        <div class="horario-block ${b.estado==='ocupado'?'ocupado':''}">
+          <span>${b.inicio}–${b.fin} · ${b.estado==='ocupado'?'Ocupado':'Disponible'}</span>
+          <div class="horario-block-actions">
+            <button onclick="toggleEstadoBloque(${b._i})" title="Cambiar estado">${b.estado==='ocupado'?'↩':'✕'}</button>
+            <button onclick="eliminarBloque(${b._i})" title="Eliminar">🗑</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+function horaAMinutos(t){ const [h,m] = t.split(':').map(Number); return h*60+m; }
+function minutosAHora(m){ const h = Math.floor(m/60); const mm = m%60; return String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0'); }
+
+window.agregarBloqueHorario = function(){
+  const dia = document.getElementById('horario_dia').value;
+  const inicio = document.getElementById('horario_inicio').value;
+  const fin = document.getElementById('horario_fin').value;
+  if(!inicio || !fin){ toast('Completa la hora de inicio y fin', true); return; }
+  if(inicio >= fin){ toast('La hora de fin debe ser después del inicio', true); return; }
+
+  // Dividimos el rango en franjas de 1 hora, para que si alguien reserva
+  // una hora dentro del rango, las demás sigan quedando disponibles.
+  let cursor = horaAMinutos(inicio);
+  const finMin = horaAMinutos(fin);
+  let agregados = 0;
+  while(cursor < finMin){
+    const siguiente = Math.min(cursor+60, finMin);
+    horariosDraft.push({ id: `${Date.now()}_${cursor}`, dia, inicio: minutosAHora(cursor), fin: minutosAHora(siguiente), estado: 'disponible' });
+    cursor = siguiente;
+    agregados++;
+  }
+  document.getElementById('horario_inicio').value = '';
+  document.getElementById('horario_fin').value = '';
+  renderHorariosList();
+  toast(`Se agregaron ${agregados} franja(s) de 1 hora`);
+}
+
+window.toggleEstadoBloque = function(i){
+  horariosDraft[i].estado = horariosDraft[i].estado === 'ocupado' ? 'disponible' : 'ocupado';
+  renderHorariosList();
+}
+window.eliminarBloque = function(i){
+  horariosDraft.splice(i,1);
+  renderHorariosList();
+}
+
+window.guardarHorarios = async function(){
+  try{
+    const pausaMensaje = document.getElementById('pausaMensaje').value.trim();
+    await updateDoc(doc(db,"profesores",currentUser.uid), {
+      horarios: horariosDraft,
+      pausado: pausaDraft,
+      pausaMensaje
+    });
+    currentEditingTeacher.horarios = horariosDraft;
+    currentEditingTeacher.pausado = pausaDraft;
+    currentEditingTeacher.pausaMensaje = pausaMensaje;
+    closeHorariosModal();
+    toast('Tus horarios se guardaron ✓');
+  }catch(e){ console.error(e); toast('No se pudo guardar', true); }
+}
+
+/* ============ ZONAS ADICIONALES (mismo patrón que Mis horarios) ============ */
+let zonasDraft = [];
+
+window.openZonasModal = function(){
+  if(!currentEditingTeacher){ toast('Primero publica tu perfil de profesor', true); return; }
+  zonasDraft = [...(currentEditingTeacher.zonasAdicionales || [])];
+  populateZonaDistritoSelect();
+  renderZonasList();
+  document.getElementById('zonasModal').classList.add('active');
+}
+window.closeZonasModal = function(){ document.getElementById('zonasModal').classList.remove('active'); }
+
+function populateZonaDistritoSelect(){
+  const sel = document.getElementById('zona_distrito');
+  if(sel.options.length) return;
+  ZONES.forEach(z=>{
+    const o = document.createElement('option');
+    o.value = z; o.textContent = z;
+    sel.appendChild(o);
+  });
+}
+
+function renderZonasList(){
+  const wrap = document.getElementById('zonasList');
+  if(zonasDraft.length===0){
+    wrap.innerHTML = `<div class="empty-state" style="padding:20px;"><p>Todavía no agregaste zonas adicionales.</p></div>`;
+    return;
+  }
+  wrap.innerHTML = zonasDraft.map((z,i)=>`
+    <div class="horario-block">
+      <span>${z.zona}${z.costo ? ` · +S/ ${z.costo}` : ' · Sin costo extra'}</span>
+      <div class="horario-block-actions">
+        <button onclick="eliminarZonaAdicional(${i})" title="Eliminar">🗑</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+window.agregarZonaAdicional = function(){
+  const zona = document.getElementById('zona_distrito').value;
+  const costoStr = document.getElementById('zona_costo').value;
+  if(zona === currentEditingTeacher.zone){ toast('Esa ya es tu zona base', true); return; }
+  if(zonasDraft.some(z=>z.zona===zona)){ toast('Ya agregaste esa zona', true); return; }
+  zonasDraft.push({ zona, costo: costoStr ? Number(costoStr) : null });
+  document.getElementById('zona_costo').value = '';
+  renderZonasList();
+}
+window.eliminarZonaAdicional = function(i){
+  zonasDraft.splice(i,1);
+  renderZonasList();
+}
+
+window.guardarZonas = async function(){
+  try{
+    await updateDoc(doc(db,"profesores",currentUser.uid), { zonasAdicionales: zonasDraft });
+    currentEditingTeacher.zonasAdicionales = zonasDraft;
+    closeZonasModal();
+    toast('Tus zonas adicionales se guardaron ✓');
+  }catch(e){ console.error(e); toast('No se pudo guardar', true); }
+}
+
+/* ============ TOAST ============ */
+let toastTimer;
+function toast(msg, isError){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.toggle('error', !!isError);
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.classList.remove('show'), 3000);
+}
+
+/* ============ AUTH MODAL (login / registro alumno) ============ */
+window.openAuthModal = function(tab){
+  setAuthTab(tab || 'login');
+  document.getElementById('authModal').classList.add('active');
+}
+window.closeAuthModal = function(){ document.getElementById('authModal').classList.remove('active'); }
+window.setAuthTab = function(tab){
+  authTab = tab;
+  document.getElementById('tabLogin').classList.toggle('active', tab==='login');
+  document.getElementById('tabRegister').classList.toggle('active', tab==='register');
+  document.getElementById('authFormLogin').style.display = tab==='login' ? 'block':'none';
+  document.getElementById('authFormRegister').style.display = tab==='register' ? 'block':'none';
+}
+
+window.doLogin = async function(){
+  const email = document.getElementById('l_email').value.trim();
+  const pass = document.getElementById('l_pass').value;
+  if(!email || !pass){ toast('Completa correo y contraseña', true); return; }
+  try{
+    await signInWithEmailAndPassword(auth, email, pass);
+    closeAuthModal();
+    toast('¡Bienvenido de nuevo!');
+  }catch(e){
+    console.error(e);
+    toast('Correo o contraseña incorrectos', true);
+  }
+}
+
+window.saveStudent = async function(){
+  const name = document.getElementById('s_name').value.trim();
+  const email = document.getElementById('s_email').value.trim();
+  const pass = document.getElementById('s_pass').value;
+  const phone = document.getElementById('s_phone').value.trim();
+  const zone = document.getElementById('s_zone').value;
+  if(!name || !email || !pass || pass.length<6){ toast('Completa nombre, correo y una contraseña de mínimo 6 caracteres', true); return; }
+
+  try{
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    await setDoc(doc(db, "usuarios", cred.user.uid), {
+      name, email, role: "alumno", creditos: CREDITOS_INICIALES, phone, zone, createdAt: serverTimestamp()
+    });
+    closeAuthModal();
+    toast('¡Cuenta creada! Ya puedes contactar profesores.');
+  }catch(e){
+    console.error(e);
+    let msg = 'No se pudo crear tu cuenta.';
+    if(e.code === 'auth/email-already-in-use') msg = 'Ese correo ya tiene cuenta. Inicia sesión.';
+    toast(msg, true);
+  }
+}
+
+/* ============ CUENTA (usuario logueado) ============ */
+window.openAccountOrAuth = function(){
+  if(currentUser){ openAccountModal(); } else { openRoleChoice(); }
+}
+window.openRoleChoice = function(){ document.getElementById('roleChoiceModal').classList.add('active'); }
+window.closeRoleChoice = function(){ document.getElementById('roleChoiceModal').classList.remove('active'); }
+function openAccountModal(){
+  document.getElementById('acc_name').textContent = currentUser.name || currentUser.email;
+  document.getElementById('acc_role').textContent = currentUser.role === 'profesor' ? 'Profesor del gremio' : 'Alumno';
+  const adminBtn = document.getElementById('acc_admin_btn');
+  if(adminBtn) adminBtn.style.display = currentUser.esAdmin ? 'block' : 'none';
+  document.getElementById('accountModal').classList.add('active');
+}
+window.closeAccountModal = function(){ document.getElementById('accountModal').classList.remove('active'); }
+
+window.doLogout = async function(){
+  await signOut(auth);
+  closeAccountModal();
+  switchView('explorar');
+  toast('Sesión cerrada');
+}
+
+/* ============ MÓDULO GREMIO: BOLSA DE SUPLENCIAS ============ */
+window.openSuplenciaForm = function(){
+  if(!currentUser || currentUser.role !== 'profesor'){ toast('Solo profesores del gremio pueden publicar suplencias', true); return; }
+  document.getElementById('suplenciaModal').classList.add('active');
+}
+window.closeSuplenciaForm = function(){ document.getElementById('suplenciaModal').classList.remove('active'); }
+
+window.submitSuplencia = async function(){
+  const instrument = document.getElementById('sup_instrument').value;
+  const zone = document.getElementById('sup_zone').value;
+  const monto = document.getElementById('sup_monto').value;
+  const msg = document.getElementById('sup_msg').value.trim();
+  if(!instrument || !zone || !monto){ toast('Completa instrumento, zona y monto', true); return; }
+
+  try{
+    await addDoc(collection(db, "suplencias"), {
+      teacherId: currentUser.uid,
+      teacherName: currentUser.name,
+      teacherPhone: currentUser.phone || '',
+      instrument, zone, monto: Number(monto), mensaje: msg,
+      estado: "abierta",
+      postulantes: [],
+      createdAt: serverTimestamp()
+    });
+
+    renderAuthWidget();
+    closeSuplenciaForm();
+    toast('Suplencia publicada al gremio 🎺');
+  }catch(e){ console.error(e); toast('No se pudo publicar la suplencia', true); }
+}
+
+function renderSuplenciaList(){
+  const list = document.getElementById('suplenciaList');
+  if(SUPLENCIAS.length===0){
+    list.innerHTML = `<div class="empty-state"><div class="icon">⚑</div><p>No hay suplencias abiertas por ahora.</p></div>`;
+    return;
+  }
+  list.innerHTML = SUPLENCIAS.map(s=>{
+    const yaPostulado = currentUser && (s.postulantes||[]).includes(currentUser.uid);
+    const esMia = currentUser && s.teacherId === currentUser.uid;
+    return `
+    <div class="sup-card">
+      <div class="sup-top">
+        <div class="sup-title">${s.instrument} · ${s.zone}</div>
+        <div class="sup-monto">S/ ${s.monto}</div>
+      </div>
+      <div class="sup-meta">Publicado por ${s.teacherName}</div>
+      ${s.mensaje ? `<div class="sup-msg">${s.mensaje}</div>` : ''}
+      ${esMia
+        ? `<div class="sup-postulantes">${(s.postulantes||[]).length} colega(s) postulado(s)</div>`
+        : `<button class="btn ${yaPostulado?'btn-ghost':'btn-teal'} btn-sm" style="margin-top:10px;" ${yaPostulado?'disabled':''} onclick="postularSuplencia('${s.id}')">${yaPostulado?'Ya te postulaste':'Postularme'}</button>`
+      }
+    </div>`;
+  }).join('');
+}
+
+window.postularSuplencia = async function(supId){
+  if(!currentUser || currentUser.role !== 'profesor'){ toast('Solo profesores pueden postularse', true); return; }
+  try{
+    await updateDoc(doc(db, "suplencias", supId), { postulantes: arrayUnion(currentUser.uid) });
+    toast('Te postulaste. El colega verá tu perfil para contactarte.');
+  }catch(e){ console.error(e); toast('No se pudo postular', true); }
+}
+
+/* ============ PANEL DE ADMIN (lectura única, no tiempo real, para cuidar la cuota gratuita) ============ */
+window.goAdmin = function(){
+  if(!currentUser || !currentUser.esAdmin){ toast('No tienes acceso a esta sección', true); return; }
+  closeAccountModal();
+  switchView('admin');
+  loadAdminStats();
+}
+
+window.loadAdminStats = async function(){
+  const wrap = document.getElementById('adminStats');
+  wrap.innerHTML = `<div class="empty-state"><div class="icon">◐</div><p>Cargando estadísticas…</p></div>`;
+  try{
+    const [usuariosSnap, suplenciasSnap, profesoresSnap, reservasSnap] = await Promise.all([
+      getDocs(collection(db, "usuarios")),
+      getDocs(collection(db, "suplencias")),
+      getDocs(collection(db, "profesores")),
+      getDocs(collection(db, "reservas"))
+    ]);
+
+    let totalProfesores = 0, totalAlumnos = 0, creditosTotales = 0;
+    usuariosSnap.forEach(d=>{
+      const u = d.data();
+      if(u.role === 'profesor') totalProfesores++;
+      if(u.role === 'alumno') totalAlumnos++;
+      creditosTotales += (u.creditos || 0);
+    });
+
+    let suplenciasAbiertas = 0;
+    suplenciasSnap.forEach(d=>{ if(d.data().estado === 'abierta') suplenciasAbiertas++; });
+
+    const pendientesAprobar = profesoresSnap.docs
+      .map(d=>({id:d.id, ...d.data()}))
+      .filter(t=>t.aprobado !== true);
+
+    const recientes = profesoresSnap.docs
+      .map(d=>({id:d.id, ...d.data()}))
+      .filter(t=>t.aprobado === true)
+      .sort((a,b)=> (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0))
+      .slice(0,6);
+
+    const pendientes = [];
+    const porPagar = {}; // profesorId -> {nombre, monto}
+    let comisionAcumulada = 0;
+    reservasSnap.forEach(d=>{
+      const r = { id:d.id, ...d.data() };
+      if(r.estado === 'pendiente_pago') pendientes.push(r);
+      if(r.estado === 'pago_confirmado' || r.estado === 'completada'){
+        comisionAcumulada += (r.comisionApp||0);
+        if(!r.pagadoAProfesor){
+          if(!porPagar[r.profesorId]) porPagar[r.profesorId] = {nombre:r.profesorNombre, monto:0};
+          porPagar[r.profesorId].monto += (r.gananciaProfesor||0);
+        }
+      }
+    });
+
+    wrap.innerHTML = `
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-num">${totalProfesores}</div><div class="stat-label">Profesores</div></div>
+        <div class="stat-card"><div class="stat-num">${totalAlumnos}</div><div class="stat-label">Alumnos</div></div>
+        <div class="stat-card"><div class="stat-num">S/ ${comisionAcumulada.toFixed(0)}</div><div class="stat-label">Comisión ganada</div></div>
+        <div class="stat-card"><div class="stat-num">${suplenciasAbiertas}</div><div class="stat-label">Suplencias abiertas</div></div>
+      </div>
+
+      <div class="admin-section-title mono">Profesores pendientes de aprobar (${pendientesAprobar.length})</div>
+      ${pendientesAprobar.length===0 ? '<div class="empty-state"><p>No hay nadie esperando aprobación.</p></div>' :
+        pendientesAprobar.map(t=>`
+          <div class="sup-card">
+            <div class="sup-top"><span class="sup-title">${t.name}</span><span class="sup-monto">S/ ${t.rate}/h</span></div>
+            <div class="sup-meta">${(t.instruments||[]).join(' · ')} · ${t.zone}</div>
+            ${t.bio ? `<div class="sup-msg">${t.bio}</div>` : ''}
+            <div class="cta-row" style="margin-top:8px;">
+              <button class="btn btn-teal btn-sm" onclick="aprobarProfesor('${t.id}')">Aprobar</button>
+              <button class="btn btn-ghost btn-sm" onclick="rechazarProfesor('${t.id}')">Rechazar</button>
+            </div>
+          </div>
+        `).join('')}
+
+      <div class="admin-section-title mono">Reservas por confirmar (${pendientes.length})</div>
+      ${pendientes.length===0 ? '<div class="empty-state"><p>No hay reservas pendientes.</p></div>' :
+        pendientes.map(r=>`
+          <div class="sup-card">
+            <div class="sup-top"><span class="sup-title">${r.alumnoNombre} → ${r.profesorNombre}</span><span class="sup-monto">S/ ${r.precio}</span></div>
+            <div class="sup-meta">Tu comisión: S/ ${r.comisionApp} · Le toca al profesor: S/ ${r.gananciaProfesor}</div>
+            ${r.comprobante ? `<img src="${r.comprobante}" style="width:100%;border-radius:8px;margin-top:8px;">` : ''}
+            <button class="btn btn-teal btn-sm" style="margin-top:10px;" onclick="confirmarPago('${r.id}')">Confirmar pago recibido</button>
+          </div>
+        `).join('')}
+
+      <div class="admin-section-title mono">Pagos pendientes a profesores</div>
+      ${Object.keys(porPagar).length===0 ? '<div class="empty-state"><p>No debes pagos por ahora.</p></div>' :
+        Object.entries(porPagar).map(([pid,info])=>`
+          <div class="sup-card">
+            <div class="sup-top"><span class="sup-title">${info.nombre}</span><span class="sup-monto">S/ ${info.monto.toFixed(0)}</span></div>
+            <button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="marcarPagadoAProfesor('${pid}')">Ya le transferí, marcar pagado</button>
+          </div>
+        `).join('')}
+
+      <div class="admin-section-title mono">Profesores recientes</div>
+      ${recientes.length===0 ? '<div class="empty-state"><p>Todavía no hay profesores.</p></div>' :
+        recientes.map(t=>`<div class="admin-row"><span class="name">${t.name}</span><span class="meta">${t.zone}</span></div>`).join('')}
+
+      <button class="btn btn-ghost btn-block" style="margin-top:20px;" onclick="loadAdminStats()">↻ Actualizar</button>
+    `;
+  }catch(e){
+    console.error(e);
+    wrap.innerHTML = `<div class="empty-state"><div class="icon">⚠</div><p>No se pudo cargar el panel.<br>Revisa que tu cuenta tenga esAdmin activado.</p></div>`;
+  }
+}
+
+/* El admin confirma que vio el pago llegar a su Yape/cuenta.
+   Esto revela el contacto al alumno y suma la clase al contador
+   de "verificado" del profesor. */
+/* Aprobar/rechazar profesores nuevos: mientras no estén aprobados, no
+   aparecen en "Explorar" ni pueden recibir solicitudes. */
+window.aprobarProfesor = async function(profesorId){
+  try{
+    await updateDoc(doc(db,"profesores",profesorId), { aprobado: true });
+    toast('Profesor aprobado ✓ Ya aparece en Explorar');
+    loadAdminStats();
+  }catch(e){ console.error(e); toast('No se pudo aprobar', true); }
+}
+window.rechazarProfesor = async function(profesorId){
+  const ok = confirm('¿Confirmas que este perfil no debe publicarse? Seguirá invisible en Explorar.');
+  if(!ok) return;
+  try{
+    await updateDoc(doc(db,"profesores",profesorId), { aprobado: false, rechazado: true });
+    toast('Perfil marcado como rechazado');
+    loadAdminStats();
+  }catch(e){ console.error(e); toast('No se pudo rechazar', true); }
+}
+
+window.confirmarPago = async function(reservaId){
+  const ok = confirm('¿Confirmas que el pago llegó a tu cuenta?');
+  if(!ok) return;
+  try{
+    const reservaRef = doc(db, "reservas", reservaId);
+    const reservaSnap = await getDoc(reservaRef);
+    if(!reservaSnap.exists()) return;
+    const r = reservaSnap.data();
+
+    await updateDoc(reservaRef, { estado: 'pago_confirmado', confirmedAt: serverTimestamp() });
+    await updateDoc(doc(db, "profesores", r.profesorId), { clasesCompletadas: increment(r.numeroClases || 1) });
+
+    toast('Pago confirmado. El alumno ya puede ver el contacto.');
+    loadAdminStats();
+  }catch(e){
+    console.error(e);
+    toast('No se pudo confirmar el pago', true);
+  }
+}
+
+/* Marca como pagadas (a un profesor específico) todas sus reservas
+   confirmadas que todavía no se le habían pagado. */
+window.marcarPagadoAProfesor = async function(profesorId){
+  const ok = confirm('¿Confirmas que ya le transferiste su parte a este profesor?');
+  if(!ok) return;
+  try{
+    const q = query(collection(db,"reservas"), where("profesorId","==",profesorId));
+    const snap = await getDocs(q);
+    const pendientes = snap.docs.filter(d=>{
+      const r = d.data();
+      return (r.estado === 'pago_confirmado' || r.estado === 'completada') && !r.pagadoAProfesor;
+    });
+    await Promise.all(pendientes.map(d => updateDoc(doc(db,"reservas",d.id), { pagadoAProfesor: true })));
+    toast('Marcado como pagado ✓');
+    loadAdminStats();
+  }catch(e){
+    console.error(e);
+    toast('No se pudo marcar como pagado', true);
+  }
+}
+
+/* ============ START ============ */
+populateZoneSelect(document.getElementById('s_zone'));
+populateZoneSelect(document.getElementById('sup_zone'));
+populateInstrumentSelect(document.getElementById('sup_instrument'));
+renderNavLock();
+
+/* ============ PWA: registrar service worker ============ */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch((e) => console.log('SW no registrado:', e));
+  });
+}
+</script>
+</body>
+</html>
