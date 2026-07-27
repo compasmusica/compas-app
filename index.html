@@ -1111,23 +1111,33 @@ window.closeChat = function(){
   loadMyReservas();
 }
 
-/* Detecta menciones a teléfono, WhatsApp, Yape o Plin — no bloquea el
-   mensaje, solo avisa, porque coordinar fuera de la app pone en riesgo
-   la devolución del dinero si algo sale mal. */
+/* Detecta datos de contacto externo o pagos fuera de la plataforma.
+   Bloquea el envío por completo (no solo avisa) — ver también la
+   regla de seguridad de Firestore, que hace esta misma validación
+   del lado de la base de datos, no solo en el celular. */
 function contieneRiesgoDePago(texto){
-  return /\b\d{9}\b/.test(texto) || /whatsapp|yape|plin/i.test(texto);
+  // Números de teléfono: 9 dígitos seguidos, o separados por espacios/puntos/guiones,
+  // con o sin +51 adelante. Quitamos los separadores para detectarlo igual.
+  const limpio = texto.replace(/[\s.\-]/g, '');
+  const tieneTelefono = /(\+?51)?\d{9}/.test(limpio);
+
+  // Solo canales de contacto externo y pagos — nada de palabras cotidianas.
+  const palabrasProhibidas = /\b(whatsapp|wsp|wasap|telegram|yape|plin|fb|facebook|ig|instagram|correo|gmail|hotmail|fono|cel|celular|tel[eé]fono)\b/i;
+
+  return tieneTelefono || palabrasProhibidas.test(texto);
 }
 
 window.sendChatMessage = async function(){
   const input = document.getElementById('chatInput');
   const texto = input.value.trim();
   if(!texto || !chatReservaId) return;
-  input.value = '';
 
   if(contieneRiesgoDePago(texto)){
-    alert('Por tu seguridad y para garantizar la devolución de tu dinero, mantén la comunicación en el chat de Compás.');
+    alert('Por tu seguridad financiera y la garantía de tu clase, la comunicación y los pagos deben mantenerse dentro de la plataforma. El intercambio de datos de contacto externo no está permitido.');
+    return; // no se envía ni se borra el campo, así puede corregir el mensaje
   }
 
+  input.value = '';
   try{
     await addDoc(collection(db,"reservas",chatReservaId,"mensajes"), {
       de: currentUser.uid,
@@ -1137,7 +1147,14 @@ window.sendChatMessage = async function(){
       profesorId: chatProfesorId,
       createdAt: serverTimestamp()
     });
-  }catch(e){ console.error(e); toast('No se pudo enviar el mensaje', true); }
+  }catch(e){
+    console.error(e);
+    if(e.code === 'permission-denied'){
+      alert('Por tu seguridad financiera y la garantía de tu clase, la comunicación y los pagos deben mantenerse dentro de la plataforma. El intercambio de datos de contacto externo no está permitido.');
+    } else {
+      toast('No se pudo enviar el mensaje', true);
+    }
+  }
 }
 
 /* ============ MIS RESERVAS (alumno) + SOLICITUDES (profesor) ============ */
