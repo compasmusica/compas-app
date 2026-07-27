@@ -1094,11 +1094,12 @@ function escapeHtml(str){
    El resto del texto se muestra tal cual (ya escapado, sin riesgo de HTML). */
 function formatMensaje(textoCrudo){
   const escapado = escapeHtml(textoCrudo);
-  const meetRegex = /(https?:\/\/meet\.google\.com\/[a-zA-Z0-9\-]+)/i;
+  const meetRegex = /((?:https?:\/\/)?meet\.google\.com\/[a-zA-Z0-9\-]+)/i;
   const match = escapado.match(meetRegex);
   if(match){
     const antes = escapado.slice(0, match.index).trim();
-    const link = match[1];
+    let link = match[1];
+    if(!/^https?:\/\//i.test(link)) link = 'https://' + link; // por si lo pegaron sin https://
     return `${antes ? antes + '<br>' : ''}<a href="${link}" target="_blank" class="meet-btn">🎥 Unirse a la clase por Google Meet</a>`;
   }
   return escapado;
@@ -1124,7 +1125,7 @@ window.sendChatMessage = async function(){
   input.value = '';
 
   if(contieneRiesgoDePago(texto)){
-    toast('Por tu seguridad y para garantizar la devolución de tu dinero, mantén la comunicación en el chat de Compás', true);
+    alert('Por tu seguridad y para garantizar la devolución de tu dinero, mantén la comunicación en el chat de Compás.');
   }
 
   try{
