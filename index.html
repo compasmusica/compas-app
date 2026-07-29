@@ -350,6 +350,8 @@
       <button class="btn btn-primary btn-block btn-lg" onclick="closeRoleChoice(); openAuthModal('register');">Quiero tomar clases</button>
       <button class="btn btn-teal btn-block btn-lg" style="margin-top:10px;" onclick="closeRoleChoice(); startWizard();">Quiero enseñar</button>
       <button class="btn btn-ghost btn-block" style="margin-top:16px;" onclick="closeRoleChoice(); openAuthModal('login');">Ya tengo cuenta, iniciar sesión</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeRoleChoice(); openFaqModal();">Preguntas frecuentes</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeRoleChoice(); openSoporteModal();">Soporte / Ayuda</button>
       <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeRoleChoice()">Cerrar</button>
     </div>
   </div>
@@ -393,6 +395,8 @@
       <div class="hint" id="acc_role">—</div>
       <button class="btn btn-teal btn-block" onclick="closeAccountModal(); switchView('misreservas'); loadMyReservas();">Mis reservas</button>
       <button id="acc_admin_btn" class="btn btn-ghost btn-block" style="margin-top:10px;display:none;" onclick="goAdmin()">Panel de administrador</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeAccountModal(); openFaqModal();">Preguntas frecuentes</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeAccountModal(); openSoporteModal();">Soporte / Ayuda</button>
       <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="doLogout()">Cerrar sesión</button>
       <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeAccountModal()">Cerrar</button>
     </div>
@@ -493,6 +497,43 @@
     </div>
   </div>
 
+  <!-- ===== MODAL: VERIFICACIÓN UNM ===== -->
+  <div class="modal-overlay" id="verificacionModal">
+    <div class="modal">
+      <h3>Verificarme con la UNM</h3>
+      <div class="hint">Sube una foto de tu carné o diploma de la Universidad Nacional de Música. El administrador lo revisa y te da la insignia "Verificado UNM" 🎓 en tu perfil.</div>
+      <label class="photo-upload" for="verificacion_foto" style="aspect-ratio:1.6;">
+        <span class="ic">🎓</span><span id="verificacion_label">Toca para subir la foto</span>
+      </label>
+      <input type="file" id="verificacion_foto" accept="image/*" style="display:none">
+      <button class="btn btn-primary btn-block" style="margin-top:18px;" onclick="enviarVerificacion()">Enviar para revisión</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeVerificacionModal()">Cerrar</button>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: SOPORTE / AYUDA ===== -->
+  <div class="modal-overlay" id="soporteModal">
+    <div class="modal">
+      <h3>Soporte / Ayuda</h3>
+      <div class="hint">¿Tienes un problema o alguna duda? Escríbenos directo.</div>
+      <a class="btn btn-teal btn-block" id="soporteWhatsappLink" href="#" target="_blank">💬 Escribir por WhatsApp</a>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeSoporteModal()">Cerrar</button>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: PREGUNTAS FRECUENTES ===== -->
+  <div class="modal-overlay" id="faqModal">
+    <div class="modal">
+      <h3>Preguntas frecuentes</h3>
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="faqTabProfesores" onclick="setFaqTab('profesores')">Para profesores</button>
+        <button class="auth-tab" id="faqTabAlumnos" onclick="setFaqTab('alumnos')">Para alumnos</button>
+      </div>
+      <div id="faqContent"></div>
+      <button class="btn btn-ghost btn-block" style="margin-top:16px;" onclick="closeFaqModal()">Cerrar</button>
+    </div>
+  </div>
+
 </div>
 
 <script type="module">
@@ -534,6 +575,7 @@ const COMISION_PORCENTAJE = 0.10; // 10% para la app, 90% para el profesor
 /* Datos de pago manual - EDITA ESTO con tus datos reales */
 const PAGO_YAPE = "991 741 746";
 const PAGO_NOMBRE = "César Paullo Torres";
+const SOPORTE_WHATSAPP = "991 741 746"; // mismo número por ahora, edítalo si usas otro
 
 /* ntfy.sh: notificaciones gratis sin backend. Cambia este topic por uno
    difícil de adivinar (nadie más debe conocerlo), e instala la app ntfy
@@ -658,7 +700,7 @@ function populateInstrumentSelect(selectEl){
 function renderFilterbar(){
   const bar = document.getElementById('filterbar');
   bar.innerHTML = "";
-  const aprobados = TEACHERS.filter(t=>t.aprobado===true);
+  const aprobados = TEACHERS.filter(t=>t.aprobado===true && t.perfilOculto!==true);
   const zonasBase = aprobados.map(t=>t.zone);
   const zonasExtra = aprobados.flatMap(t=>(t.zonasAdicionales||[]).map(z=>z.zona));
   const zonesUsed = ["Todos", ...new Set([...zonasBase, ...zonasExtra])];
@@ -675,7 +717,7 @@ function initials(name){ return (name||"?").split(' ').map(p=>p[0]).slice(0,2).j
 
 function renderTeacherList(){
   const list = document.getElementById('teacherList');
-  const aprobados = TEACHERS.filter(t=>t.aprobado === true);
+  const aprobados = TEACHERS.filter(t=>t.aprobado === true && t.perfilOculto !== true);
   const filtered = activeFilter==="Todos" ? aprobados : aprobados.filter(t=>
     t.zone===activeFilter || (t.zonasAdicionales||[]).some(z=>z.zona===activeFilter)
   );
@@ -698,7 +740,7 @@ function renderTeacherList(){
       <div class="avatar" style="${t.photo ? `background-image:url(${t.photo})`:''}">${t.photo?'':initials(t.name)}</div>
       <div class="tcard-body">
         <div class="tcard-top">
-          <div class="tcard-name">${t.name}${verificado ? ' <span class="verified-badge" title="Verificado: 3+ clases en Compás">✓</span>' : ''}</div>
+          <div class="tcard-name">${t.name}${verificado ? ' <span class="verified-badge" title="Verificado: 3+ clases en Compás">✓</span>' : ''}${t.verificadoUNM===true ? ' <span class="verified-badge" title="Verificado UNM" style="background:var(--teal);">🎓</span>' : ''}</div>
           <div class="tcard-rate">S/ ${t.rate}/h</div>
         </div>
         <div class="tcard-meta">${(t.instruments||[]).join(' · ')}</div>
@@ -1531,22 +1573,131 @@ function renderMyProfilePreview(){
   const wrap = document.getElementById('myProfilePreview');
   if(!currentEditingTeacher){ wrap.innerHTML=''; return; }
   const t = currentEditingTeacher;
-  const pendienteHtml = t.aprobado !== true
-    ? `<div class="pausa-banner" style="background:rgba(201,151,63,0.14);border-color:rgba(201,151,63,0.3);color:var(--brass-bright);">Tu perfil está en revisión. Aún no aparece en "Explorar" — te avisamos apenas se apruebe.</div>`
-    : '';
+
+  let estadoHtml = '';
+  if(t.rechazado === true){
+    estadoHtml = `<div class="pausa-banner">Tu perfil no fue aprobado para publicarse en Compás. Si crees que es un error o quieres más información, escríbenos por Soporte / Ayuda.</div>`;
+  } else if(t.aprobado !== true){
+    estadoHtml = `<div class="pausa-banner" style="background:rgba(201,151,63,0.14);border-color:rgba(201,151,63,0.3);color:var(--brass-bright);">Tu perfil está en revisión. Aún no aparece en "Explorar" — te avisamos apenas se apruebe.</div>`;
+  } else if(t.perfilOculto === true){
+    estadoHtml = `<div class="pausa-banner" style="background:rgba(107,107,114,0.14);border-color:rgba(107,107,114,0.3);color:var(--text-dim);">Tu perfil está pausado. No aparece en "Explorar" hasta que lo reactives.</div>`;
+  }
+
+  const unmBadge = t.verificadoUNM === true ? ' <span class="verified-badge" title="Verificado UNM" style="background:var(--teal);">🎓</span>' : '';
+
   wrap.innerHTML = `<div class="mono" style="color:var(--text-dim);margin-bottom:10px;">Tu perfil</div>
-    ${pendienteHtml}
+    ${estadoHtml}
     <div class="teacher-card">
       <div class="avatar" style="${t.photo?`background-image:url(${t.photo})`:''}">${t.photo?'':initials(t.name)}</div>
       <div class="tcard-body">
-        <div class="tcard-top"><div class="tcard-name">${t.name}</div><div class="tcard-rate">S/ ${t.rate}/h</div></div>
+        <div class="tcard-top"><div class="tcard-name">${t.name}${unmBadge}</div><div class="tcard-rate">S/ ${t.rate}/h</div></div>
         <div class="tcard-meta">${(t.instruments||[]).join(' · ')}</div>
         <div class="tcard-tags"><span class="tag-pill zone">${t.zone}</span><span class="tag-pill">${MODALIDADES.find(m=>m.id===t.modalidad)?.label}</span></div>
       </div>
     </div>
     <button class="btn btn-ghost btn-block" style="margin-top:12px;" onclick="editMyProfile()">Editar mi perfil</button>
     <button class="btn btn-teal btn-block" style="margin-top:10px;" onclick="openHorariosModal()">Mis horarios</button>
-    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="openZonasModal()">Zonas adicionales</button>`;
+    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="openZonasModal()">Zonas adicionales</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="openVerificacionModal()">${t.verificadoUNM===true ? 'Verificación UNM ✓' : (t.verificacionUNMPendiente===true ? 'Verificación en revisión…' : 'Verificarme con la UNM')}</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="togglePerfilOculto()">${t.perfilOculto===true ? 'Reactivar mi perfil' : 'Pausar mi perfil'}</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px;color:var(--danger);" onclick="darDeBaja()">Darme de baja</button>`;
+}
+
+window.togglePerfilOculto = async function(){
+  try{
+    const nuevoEstado = !(currentEditingTeacher.perfilOculto === true);
+    await updateDoc(doc(db,"profesores",currentUser.uid), { perfilOculto: nuevoEstado });
+    currentEditingTeacher.perfilOculto = nuevoEstado;
+    renderMyProfilePreview();
+    toast(nuevoEstado ? 'Tu perfil quedó pausado' : 'Tu perfil está activo de nuevo');
+  }catch(e){ console.error(e); toast('No se pudo actualizar', true); }
+}
+
+window.darDeBaja = async function(){
+  const ok = confirm('¿Seguro que quieres darte de baja? Tu perfil dejará de aparecer en Explorar. Tu historial de clases no se borra — si quieres volver, contacta a Soporte.');
+  if(!ok) return;
+  try{
+    await updateDoc(doc(db,"profesores",currentUser.uid), { perfilOculto: true });
+    currentEditingTeacher.perfilOculto = true;
+    await doLogout();
+    toast('Tu cuenta quedó dada de baja');
+  }catch(e){ console.error(e); toast('No se pudo procesar la baja', true); }
+}
+
+/* ============ VERIFICACIÓN UNM (carné/diploma) ============ */
+let verificacionFotoData = null;
+
+window.openVerificacionModal = function(){
+  if(!currentEditingTeacher){ toast('Primero publica tu perfil de profesor', true); return; }
+  if(currentEditingTeacher.verificadoUNM === true){ toast('Ya tienes la insignia Verificado UNM ✓', false); return; }
+  verificacionFotoData = null;
+  document.getElementById('verificacion_label').textContent = 'Toca para subir la foto';
+  document.getElementById('verificacion_foto').value = '';
+  document.getElementById('verificacion_foto').addEventListener('change', function(e){
+    const file = e.target.files[0];
+    if(file){
+      compressImage(file, 700, 0.7).then(dataUrl=>{
+        verificacionFotoData = dataUrl;
+        document.getElementById('verificacion_label').textContent = '✓ Foto lista';
+      });
+    }
+  });
+  document.getElementById('verificacionModal').classList.add('active');
+}
+window.closeVerificacionModal = function(){ document.getElementById('verificacionModal').classList.remove('active'); }
+
+window.enviarVerificacion = async function(){
+  if(!verificacionFotoData){ toast('Sube una foto de tu carné o diploma primero', true); return; }
+  try{
+    await updateDoc(doc(db,"profesores",currentUser.uid), {
+      carnetUNM: verificacionFotoData,
+      verificacionUNMPendiente: true,
+      verificadoUNM: false
+    });
+    currentEditingTeacher.verificacionUNMPendiente = true;
+    closeVerificacionModal();
+    renderMyProfilePreview();
+    toast('Enviado. Te avisamos cuando quede verificado ✓');
+  }catch(e){ console.error(e); toast('No se pudo enviar', true); }
+}
+
+/* ============ SOPORTE / AYUDA ============ */
+window.openSoporteModal = function(){
+  const digits = SOPORTE_WHATSAPP.replace(/\D/g,'');
+  const conCodigo = digits.length===9 ? '51'+digits : digits;
+  document.getElementById('soporteWhatsappLink').href = `https://wa.me/${conCodigo}`;
+  document.getElementById('soporteModal').classList.add('active');
+}
+window.closeSoporteModal = function(){ document.getElementById('soporteModal').classList.remove('active'); }
+
+/* ============ PREGUNTAS FRECUENTES ============ */
+const FAQ_PROFESORES = [
+  {q:'¿Cómo verifican mi perfil de la UNM?', a:'Revisamos tu perfil manualmente antes de publicarlo. Si además subes tu carné o diploma en "Verificarme con la UNM", te damos la insignia 🎓 Verificado UNM.'},
+  {q:'¿Cómo me contactan los alumnos?', a:'Siempre a través del chat interno de Compás, nunca por WhatsApp directo — así protegemos tu privacidad y garantizamos tu pago.'},
+  {q:'¿Tiene costo estar en la plataforma?', a:'No, publicar tu perfil es gratis. Compás cobra una comisión del 10% solo cuando confirmas una clase pagada.'},
+  {q:'¿Cómo dicto clases virtuales?', a:'Comparte tu link de Google Meet directo en el chat de la reserva — Compás lo convierte automáticamente en un botón para unirse.'}
+];
+const FAQ_ALUMNOS = [
+  {q:'¿Por qué los profesores son garantizados?', a:'Cada profesor pasa por una revisión manual antes de aparecer en Explorar, y puedes ver su calificación de clases anteriores con otros alumnos.'},
+  {q:'¿Cómo coordino y tomo una clase?', a:'Solicitas un horario disponible, el profesor lo confirma, pagas dentro de la app y listo — te llega el contacto por chat y ahí coordinan todo.'},
+  {q:'¿Qué pasa si el profesor no se conecta?', a:'Escríbele por el chat interno. Si no responde, contáctanos por Soporte / Ayuda y te ayudamos a resolverlo.'}
+];
+
+window.openFaqModal = function(){
+  setFaqTab('profesores');
+  document.getElementById('faqModal').classList.add('active');
+}
+window.closeFaqModal = function(){ document.getElementById('faqModal').classList.remove('active'); }
+window.setFaqTab = function(tab){
+  document.getElementById('faqTabProfesores').classList.toggle('active', tab==='profesores');
+  document.getElementById('faqTabAlumnos').classList.toggle('active', tab==='alumnos');
+  const lista = tab==='profesores' ? FAQ_PROFESORES : FAQ_ALUMNOS;
+  document.getElementById('faqContent').innerHTML = lista.map(item=>`
+    <div class="horario-block" style="flex-direction:column;align-items:flex-start;cursor:pointer;" onclick="const a=this.querySelector('.faq-a'); a.style.display = a.style.display==='block' ? 'none':'block';">
+      <strong style="font-size:13.5px;">${item.q}</strong>
+      <div class="faq-a" style="display:none;font-size:12.5px;color:var(--text-dim);margin-top:6px;line-height:1.5;">${item.a}</div>
+    </div>
+  `).join('');
 }
 
 /* ============ MIS HORARIOS (disponibilidad del profesor) ============ */
@@ -1903,6 +2054,10 @@ window.loadAdminStats = async function(){
       .map(d=>({id:d.id, ...d.data()}))
       .filter(t=>t.aprobado !== true);
 
+    const pendientesUNM = profesoresSnap.docs
+      .map(d=>({id:d.id, ...d.data()}))
+      .filter(t=>t.verificacionUNMPendiente === true);
+
     const recientes = profesoresSnap.docs
       .map(d=>({id:d.id, ...d.data()}))
       .filter(t=>t.aprobado === true)
@@ -1942,6 +2097,19 @@ window.loadAdminStats = async function(){
             <div class="cta-row" style="margin-top:8px;">
               <button class="btn btn-teal btn-sm" onclick="aprobarProfesor('${t.id}')">Aprobar</button>
               <button class="btn btn-ghost btn-sm" onclick="rechazarProfesor('${t.id}')">Rechazar</button>
+            </div>
+          </div>
+        `).join('')}
+
+      <div class="admin-section-title mono">Verificaciones UNM pendientes (${pendientesUNM.length})</div>
+      ${pendientesUNM.length===0 ? '<div class="empty-state"><p>No hay verificaciones pendientes.</p></div>' :
+        pendientesUNM.map(t=>`
+          <div class="sup-card">
+            <div class="sup-top"><span class="sup-title">${t.name}</span></div>
+            ${t.carnetUNM ? `<img src="${t.carnetUNM}" style="width:100%;border-radius:8px;margin-top:8px;">` : ''}
+            <div class="cta-row" style="margin-top:8px;">
+              <button class="btn btn-teal btn-sm" onclick="aprobarVerificacionUNM('${t.id}')">Aprobar</button>
+              <button class="btn btn-ghost btn-sm" onclick="rechazarVerificacionUNM('${t.id}')">Rechazar</button>
             </div>
           </div>
         `).join('')}
@@ -1998,6 +2166,21 @@ window.rechazarProfesor = async function(profesorId){
     toast('Perfil marcado como rechazado');
     loadAdminStats();
   }catch(e){ console.error(e); toast('No se pudo rechazar', true); }
+}
+
+window.aprobarVerificacionUNM = async function(profesorId){
+  try{
+    await updateDoc(doc(db,"profesores",profesorId), { verificadoUNM: true, verificacionUNMPendiente: false });
+    toast('Verificación UNM aprobada ✓');
+    loadAdminStats();
+  }catch(e){ console.error(e); toast('No se pudo aprobar', true); }
+}
+window.rechazarVerificacionUNM = async function(profesorId){
+  try{
+    await updateDoc(doc(db,"profesores",profesorId), { verificadoUNM: false, verificacionUNMPendiente: false });
+    toast('Verificación UNM rechazada');
+    loadAdminStats();
+  }catch(e){ console.error(e); toast('No se pudo procesar', true); }
 }
 
 window.confirmarPago = async function(reservaId){
