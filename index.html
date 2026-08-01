@@ -593,10 +593,14 @@ let activeFilter = "Todos";
 let currentEditingTeacher = null;
 let currentUser = null;   // { uid, email, name, role, creditos, zone, phone }
 let authTab = 'login';
-/* ============ NOTIFICACIÓN A CÉSAR (ntfy.sh, gratis, sin backend) ============ */
-function notificarCesar(titulo, mensaje){
+/* ============ NOTIFICACIONES (ntfy.sh, gratis, sin backend) ============ */
+
+/* Envía una notificación a cualquier canal de ntfy. Cada profesor tiene
+   el suyo propio (guardado en su perfil), y tú tienes el tuyo fijo. */
+function enviarNotificacion(topic, titulo, mensaje){
+  if(!topic) return;
   try{
-    fetch(`https://ntfy.sh/${NTFY_TOPIC}`, {
+    fetch(`https://ntfy.sh/${topic}`, {
       method: 'POST',
       body: mensaje,
       headers: { 'Title': titulo, 'Priority': 'high', 'Tags': 'musical_note' }
@@ -606,6 +610,13 @@ function notificarCesar(titulo, mensaje){
   }catch(err){
     console.error('ntfy: error al construir la notificación (probablemente el título tiene un carácter no permitido):', err);
   }
+}
+function notificarCesar(titulo, mensaje){ enviarNotificacion(NTFY_TOPIC, titulo, mensaje); }
+
+/* Genera un nombre de canal único para un profesor nuevo. Nadie más lo
+   conoce; no está ligado a su nombre real ni a su número. */
+function generarTopicNtfy(){
+  return 'compas-' + Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4);
 }
 
 /* ============ AUTH STATE ============ */
@@ -906,8 +917,15 @@ window.submitSolicitud = async function(){
       calificada: false,
       createdAt: serverTimestamp()
     });
-    // Sin alarma aquí a propósito: la coordinación de horario entre alumno y
-    // profesor es privada. Solo te avisamos cuando hay dinero de por medio.
+    // Le avisamos solo al profesor solicitado, a su propio canal — no a ti.
+    // El aviso de pagos (a tu canal) sigue funcionando aparte, sin cambios.
+    if(solicitudTeacher.ntfyTopic){
+      enviarNotificacion(
+        solicitudTeacher.ntfyTopic,
+        'Nueva solicitud de horario',
+        `${currentUser.name} te pidió horario: "${horario}"`
+      );
+    }
     closeReservaModal();
     toast('Solicitud enviada. Revisa "Mis reservas" cuando el profesor confirme.');
   }catch(e){
@@ -1550,11 +1568,17 @@ window.publishProfile = async function(){
       datosProfesor.clasesCompletadas = 0;
       datosProfesor.createdAt = serverTimestamp();
       datosProfesor.aprobado = false; // pendiente de revisión manual del admin
+      datosProfesor.ntfyTopic = generarTopicNtfy(); // canal propio para sus notificaciones
+    } else if(!currentEditingTeacher?.ntfyTopic){
+      // Perfil creado antes de que existiera este sistema: le damos su canal ahora.
+      // Excepción: tu propia cuenta de admin reutiliza el canal que ya tienes armado,
+      // para que no tengas que suscribirte a uno nuevo.
+      datosProfesor.ntfyTopic = currentUser?.esAdmin ? NTFY_TOPIC : generarTopicNtfy();
     }
     await setDoc(doc(db, "profesores", uid), datosProfesor, { merge: true });
 
     currentUser = { ...currentUser, uid, email, name: draft.name, role: "profesor", zone: draft.zone, phone: draft.phone };
-    currentEditingTeacher = { id: uid, ...draft, rate: Number(draft.rate), aprobado: esEdicion ? currentEditingTeacher?.aprobado : false, clasesCompletadas: esEdicion ? currentEditingTeacher?.clasesCompletadas : 0 };
+    currentEditingTeacher = { id: uid, ...draft, rate: Number(draft.rate), aprobado: esEdicion ? currentEditingTeacher?.aprobado : false, clasesCompletadas: esEdicion ? currentEditingTeacher?.clasesCompletadas : 0, ntfyTopic: esEdicion ? currentEditingTeacher?.ntfyTopic : datosProfesor.ntfyTopic };
     renderAuthWidget();
     renderNavLock();
     switchView('ensenar');
@@ -1599,6 +1623,7 @@ function renderMyProfilePreview(){
     <button class="btn btn-teal btn-block" style="margin-top:10px;" onclick="openHorariosModal()">Mis horarios</button>
     <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="openZonasModal()">Zonas adicionales</button>
     <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="openVerificacionModal()">${t.verificadoUNM===true ? 'Verificación UNM ✓' : (t.verificacionUNMPendiente===true ? 'Verificación en revisión…' : 'Verificarme con la UNM')}</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="activarNotificacionesProfesor()">🔔 Activar mis notificaciones</button>
     <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="togglePerfilOculto()">${t.perfilOculto===true ? 'Reactivar mi perfil' : 'Pausar mi perfil'}</button>
     <button class="btn btn-ghost btn-block" style="margin-top:10px;color:var(--danger);" onclick="darDeBaja()">Darme de baja</button>`;
 }
@@ -1662,6 +1687,17 @@ window.enviarVerificacion = async function(){
 }
 
 /* ============ SOPORTE / AYUDA ============ */
+/* Abre ntfy con el canal propio del profesor, para que se suscriba
+   con un toque. Necesita tener la app ntfy instalada primero. */
+window.activarNotificacionesProfesor = function(){
+  if(!currentEditingTeacher || !currentEditingTeacher.ntfyTopic){
+    toast('Tu perfil no tiene un canal de notificaciones todavía. Edítalo y vuelve a intentar.', true);
+    return;
+  }
+  alert('Se va a abrir la app ntfy para que actives tus notificaciones.\n\nSi todavía no la tienes instalada: búscala en Play Store como "ntfy" antes de continuar, e inténtalo de nuevo.');
+  window.open(`https://ntfy.sh/${currentEditingTeacher.ntfyTopic}`, '_blank');
+}
+
 window.openSoporteModal = function(){
   const digits = SOPORTE_WHATSAPP.replace(/\D/g,'');
   const conCodigo = digits.length===9 ? '51'+digits : digits;
