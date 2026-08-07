@@ -359,6 +359,10 @@
   <!-- ===== MODAL: AUTH (login / registro alumno) ===== -->
   <div class="modal-overlay" id="authModal">
     <div class="modal">
+      <button class="btn btn-block btn-lg" style="background:#fff;color:#3c4043;border:1.5px solid rgba(32,36,46,0.15);margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:10px;" onclick="loginConGoogle()">
+        <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84c-.21 1.13-.84 2.09-1.8 2.73v2.27h2.91c1.7-1.57 2.69-3.88 2.69-6.64z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.91-2.27c-.81.54-1.84.86-3.05.86-2.34 0-4.33-1.58-5.04-3.71H.96v2.34C2.44 15.98 5.48 18 9 18z"/><path fill="#FBBC05" d="M3.96 10.71c-.18-.54-.28-1.11-.28-1.71s.1-1.17.28-1.71V4.96H.96A8.996 8.996 0 000 9c0 1.45.35 2.83.96 4.04l3-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0 5.48 0 2.44 2.02.96 4.96l3 2.33C4.67 5.16 6.66 3.58 9 3.58z"/></svg>
+        Continuar con Google
+      </button>
       <div class="auth-tabs">
         <button class="auth-tab" id="tabLogin" onclick="setAuthTab('login')">Ya tengo cuenta</button>
         <button class="auth-tab" id="tabRegister" onclick="setAuthTab('register')">Crear cuenta de alumno</button>
@@ -387,6 +391,17 @@
       <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeAuthModal()">Cerrar</button>
     </div>
   </div>
+
+  <!-- ===== MODAL: ELEGIR ROL TRAS GOOGLE (primera vez) ===== -->
+  <div class="modal-overlay" id="googleRoleModal">
+    <div class="modal">
+      <h3>¡Ya casi! ¿Qué quieres hacer en Compás?</h3>
+      <div class="hint">Solo la primera vez — con esto activamos tu cuenta.</div>
+      <button class="btn btn-primary btn-block btn-lg" onclick="elegirRolGoogleAlumno()">Quiero tomar clases</button>
+      <button class="btn btn-teal btn-block btn-lg" style="margin-top:10px;" onclick="elegirRolGoogleProfesor()">Quiero enseñar</button>
+    </div>
+  </div>
+
 
   <!-- ===== MODAL: CUENTA (usuario logueado) ===== -->
   <div class="modal-overlay" id="accountModal">
@@ -536,6 +551,7 @@
 
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script type="module">
 /* ============================================================
    COMPÁS — Integración Firebase (Firestore + Authentication)
@@ -548,7 +564,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-  onAuthStateChanged, signOut
+  onAuthStateChanged, signOut, GoogleAuthProvider, signInWithRedirect, getRedirectResult
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 /* --------------------------------------------------------------
@@ -567,6 +583,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
+let pendingGoogleUser = null;
 
 const CREDITOS_INICIALES = 20;
 const COSTO_PUBLICAR_SUPLENCIA = 10;
@@ -1086,6 +1104,7 @@ let chatReservaId = null;
 let chatAlumnoId = null;
 let chatProfesorId = null;
 let chatUnsub = null; // función para desconectar el listener al salir, y no gastar lecturas de más
+const TICKETS_POR_MENSAJE = {}; // id de mensaje -> PDF en base64, para el botón de compartir
 
 /* Mantiene el chat ajustado al espacio visible real, para que el teclado
    del celular no empuje los mensajes fuera de la pantalla. */
@@ -1132,7 +1151,14 @@ window.openChat = async function(reservaId, otroNombre){
         const m = d.data();
         const mia = m.de === currentUser.uid;
         const hora = m.createdAt?.toDate ? m.createdAt.toDate().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}) : '';
-        return `<div class="msg ${mia?'mine':'other'}">${formatMensaje(m.texto)}<span class="msg-time">${hora}</span></div>`;
+        let contenido;
+        if(m.tipo === 'ticket' && m.archivoPDF){
+          TICKETS_POR_MENSAJE[d.id] = m.archivoPDF;
+          contenido = `${escapeHtml(m.texto)}<br><button class="meet-btn" onclick="compartirTicketPDF('${d.id}')">📄 Descargar / compartir ticket</button>`;
+        } else {
+          contenido = formatMensaje(m.texto);
+        }
+        return `<div class="msg ${mia?'mine':'other'}">${contenido}<span class="msg-time">${hora}</span></div>`;
       }).join('');
       wrap.scrollTop = wrap.scrollHeight;
     }, (err)=>{
@@ -1527,15 +1553,23 @@ window.publishProfile = async function(){
     let uid, email;
 
     if(auth.currentUser){
-      // Ya hay una cuenta activa (ej. te registraste como alumno o ya tienes cuenta
-      // de profesor): completamos el perfil sin crear una cuenta nueva.
+      // Ya hay una cuenta activa (ej. te registraste con Google, como alumno,
+      // o ya tienes cuenta de profesor): completamos el perfil sin crear
+      // una cuenta nueva. setDoc+merge crea el documento si no existía
+      // todavía (caso de alguien nuevo que entró con Google).
       uid = auth.currentUser.uid;
       email = auth.currentUser.email;
       try{
-        await updateDoc(doc(db, "usuarios", uid), { role: "profesor" });
+        await setDoc(doc(db, "usuarios", uid), {
+          role: "profesor",
+          name: draft.name,
+          email: email,
+          phone: draft.phone,
+          zone: draft.zone,
+          creditos: CREDITOS_INICIALES
+        }, { merge: true });
       }catch(e){
-        // Si ya eras profesor, esto no cambia nada y no falla. Si eras alumno,
-        // la regla de seguridad bloquea el cambio de rol por ahora.
+        // Si ya eras alumno, la regla de seguridad bloquea el cambio de rol por ahora.
       }
     } else {
       const cred = await createUserWithEmailAndPassword(auth, draft.email, draft.pass);
@@ -1947,6 +1981,48 @@ window.doLogin = async function(){
   }
 }
 
+/* ============ GOOGLE SIGN-IN ============ */
+window.loginConGoogle = function(){
+  signInWithRedirect(auth, googleProvider);
+}
+
+/* Al volver de Google, revisamos si es una cuenta nueva (sin rol todavía) */
+getRedirectResult(auth).then(async (result)=>{
+  if(!result || !result.user) return;
+  const u = result.user;
+  const snap = await getDoc(doc(db, "usuarios", u.uid));
+  if(!snap.exists()){
+    pendingGoogleUser = { uid: u.uid, name: u.displayName || u.email, email: u.email, photo: u.photoURL || '' };
+    closeAuthModal();
+    document.getElementById('googleRoleModal').classList.add('active');
+  } else {
+    closeAuthModal();
+    toast('¡Bienvenido de nuevo!');
+  }
+}).catch(err=>{ if(err) console.error('Google sign-in:', err); });
+
+window.elegirRolGoogleAlumno = async function(){
+  if(!pendingGoogleUser) return;
+  try{
+    await setDoc(doc(db,"usuarios",pendingGoogleUser.uid), {
+      name: pendingGoogleUser.name,
+      email: pendingGoogleUser.email,
+      role: "alumno",
+      creditos: CREDITOS_INICIALES,
+      phone: "",
+      zone: "",
+      photoURL: pendingGoogleUser.photo,
+      createdAt: serverTimestamp()
+    });
+    document.getElementById('googleRoleModal').classList.remove('active');
+    toast('¡Bienvenido a Compás! 🎵');
+  }catch(e){ console.error(e); toast('No se pudo completar el registro', true); }
+}
+window.elegirRolGoogleProfesor = function(){
+  document.getElementById('googleRoleModal').classList.remove('active');
+  startWizard();
+}
+
 window.saveStudent = async function(){
   const name = document.getElementById('s_name').value.trim();
   const email = document.getElementById('s_email').value.trim();
@@ -2229,14 +2305,89 @@ window.confirmarPago = async function(reservaId){
     const r = reservaSnap.data();
 
     await updateDoc(reservaRef, { estado: 'pago_confirmado', confirmedAt: serverTimestamp() });
+
+    const profSnap = await getDoc(doc(db, "profesores", r.profesorId));
+    const prof = profSnap.exists() ? profSnap.data() : {};
     await updateDoc(doc(db, "profesores", r.profesorId), { clasesCompletadas: increment(r.numeroClases || 1) });
 
-    toast('Pago confirmado. El alumno ya puede ver el contacto.');
+    // Ticket digital: se genera y se publica como mensaje descargable en el chat.
+    try{
+      const ticketDataUri = generarTicketPDF(r, prof);
+      await enviarTicketAlChat(reservaId, r, ticketDataUri);
+    }catch(e){ console.error('No se pudo generar/enviar el ticket:', e); }
+
+    // Avisamos al profesor (a su propio canal) que la clase ya está pagada.
+    if(prof.ntfyTopic){
+      enviarNotificacion(prof.ntfyTopic, 'Clase pagada', `${r.alumnoNombre} ya pagó su clase contigo. Ya pueden coordinar por el chat.`);
+    }
+
+    toast('Pago confirmado. Se generó el ticket y se avisó al profesor.');
     loadAdminStats();
   }catch(e){
     console.error(e);
     toast('No se pudo confirmar el pago', true);
   }
+}
+
+/* ============ TICKET DIGITAL (PDF) ============ */
+function generarTicketPDF(r, prof){
+  const { jsPDF } = window.jspdf;
+
+  const pdf = new jsPDF();
+  pdf.setFontSize(20);
+  pdf.text('Compás', 20, 22);
+  pdf.setFontSize(12);
+  pdf.text('Ticket de Reserva Digital (no es un comprobante fiscal)', 20, 30);
+  pdf.line(20, 34, 190, 34);
+
+  let y = 46;
+  const campo = (label, valor) => { pdf.setFontSize(11); pdf.text(`${label}: ${valor || '-'}`, 20, y); y += 9; };
+  campo('Alumno', r.alumnoNombre);
+  campo('Profesor', r.profesorNombre);
+  campo('Instrumento(s)', (prof.instruments||[]).join(', '));
+  campo('Modalidad', prof.modalidad || '-');
+  campo('Horario', r.horario);
+  campo('Monto total', `S/ ${r.precio}`);
+  campo('Estado', 'Pago confirmado');
+
+  pdf.setFontSize(9);
+  pdf.text('Este ticket confirma tu reserva dentro de la plataforma Compás.', 20, y+8);
+
+  return pdf.output('datauristring');
+}
+
+/* Publica el ticket como mensaje especial en el chat de la reserva. */
+async function enviarTicketAlChat(reservaId, r, ticketDataUri){
+  await addDoc(collection(db, "reservas", reservaId, "mensajes"), {
+    de: currentUser.uid,
+    deNombre: 'Compás',
+    texto: '🎫 Tu ticket de reserva ya está listo.',
+    tipo: 'ticket',
+    archivoPDF: ticketDataUri,
+    alumnoId: r.alumnoId,
+    profesorId: r.profesorId,
+    createdAt: serverTimestamp()
+  });
+}
+
+/* Comparte el PDF con el menú nativo del celular (WhatsApp, Gmail, Drive,
+   guardar...); si el navegador no lo soporta, lo descarga directo. */
+window.compartirTicketPDF = async function(msgId){
+  const dataUri = TICKETS_POR_MENSAJE[msgId];
+  if(!dataUri) return;
+  try{
+    const res = await fetch(dataUri);
+    const blob = await res.blob();
+    const file = new File([blob], 'ticket-compas.pdf', { type: 'application/pdf' });
+    if(navigator.canShare && navigator.canShare({ files: [file] })){
+      await navigator.share({ files: [file], title: 'Ticket Compás', text: 'Tu ticket de clase' });
+      return;
+    }
+  }catch(e){ console.error(e); }
+  const a = document.createElement('a');
+  a.href = dataUri;
+  a.download = 'ticket-compas.pdf';
+  a.click();
 }
 
 /* Marca como pagadas (a un profesor específico) todas sus reservas
