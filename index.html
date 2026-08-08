@@ -564,7 +564,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-  onAuthStateChanged, signOut, GoogleAuthProvider, signInWithRedirect, getRedirectResult
+  onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 /* --------------------------------------------------------------
@@ -1982,24 +1982,28 @@ window.doLogin = async function(){
 }
 
 /* ============ GOOGLE SIGN-IN ============ */
-window.loginConGoogle = function(){
-  signInWithRedirect(auth, googleProvider);
-}
-
-/* Al volver de Google, revisamos si es una cuenta nueva (sin rol todavía) */
-getRedirectResult(auth).then(async (result)=>{
-  if(!result || !result.user) return;
-  const u = result.user;
-  const snap = await getDoc(doc(db, "usuarios", u.uid));
-  if(!snap.exists()){
-    pendingGoogleUser = { uid: u.uid, name: u.displayName || u.email, email: u.email, photo: u.photoURL || '' };
-    closeAuthModal();
-    document.getElementById('googleRoleModal').classList.add('active');
-  } else {
-    closeAuthModal();
-    toast('¡Bienvenido de nuevo!');
+window.loginConGoogle = async function(){
+  try{
+    const result = await signInWithPopup(auth, googleProvider);
+    const u = result.user;
+    const snap = await getDoc(doc(db, "usuarios", u.uid));
+    if(!snap.exists()){
+      pendingGoogleUser = { uid: u.uid, name: u.displayName || u.email, email: u.email, photo: u.photoURL || '' };
+      closeAuthModal();
+      document.getElementById('googleRoleModal').classList.add('active');
+    } else {
+      closeAuthModal();
+      toast('¡Bienvenido de nuevo!');
+    }
+  }catch(e){
+    console.error('Google sign-in:', e);
+    if(e.code === 'auth/popup-blocked'){
+      toast('Tu navegador bloqueó la ventana de Google. Revisa los permisos de ventanas emergentes.', true);
+    } else if(e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request'){
+      toast('No se pudo iniciar sesión con Google', true);
+    }
   }
-}).catch(err=>{ if(err) console.error('Google sign-in:', err); });
+}
 
 window.elegirRolGoogleAlumno = async function(){
   if(!pendingGoogleUser) return;
