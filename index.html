@@ -395,10 +395,19 @@
   <!-- ===== MODAL: ELEGIR ROL TRAS GOOGLE (primera vez) ===== -->
   <div class="modal-overlay" id="googleRoleModal">
     <div class="modal">
-      <h3>¡Ya casi! ¿Qué quieres hacer en Compás?</h3>
-      <div class="hint">Solo la primera vez — con esto activamos tu cuenta.</div>
-      <button class="btn btn-primary btn-block btn-lg" onclick="elegirRolGoogleAlumno()">Quiero tomar clases</button>
-      <button class="btn btn-teal btn-block btn-lg" style="margin-top:10px;" onclick="elegirRolGoogleProfesor()">Quiero enseñar</button>
+      <div id="googleRoleChoice">
+        <h3>¡Ya casi! ¿Qué quieres hacer en Compás?</h3>
+        <div class="hint">Solo la primera vez — con esto activamos tu cuenta.</div>
+        <button class="btn btn-primary btn-block btn-lg" onclick="mostrarFormAlumnoGoogle()">Quiero tomar clases</button>
+        <button class="btn btn-teal btn-block btn-lg" style="margin-top:10px;" onclick="elegirRolGoogleProfesor()">Quiero enseñar</button>
+      </div>
+      <div id="googleAlumnoForm" style="display:none;">
+        <h3>Un par de datos más</h3>
+        <div class="hint">Así los profesores te pueden ubicar y contactar.</div>
+        <div class="field"><label>Teléfono / WhatsApp</label><input type="tel" id="ga_phone" placeholder="+51 999 999 999"></div>
+        <div class="field"><label>Tu zona</label><select id="ga_zone"><option value="">Selecciona tu distrito</option></select></div>
+        <button class="btn btn-primary btn-block btn-lg" onclick="finalizarRegistroAlumnoGoogle()">Finalizar registro</button>
+      </div>
     </div>
   </div>
 
@@ -2005,23 +2014,39 @@ window.loginConGoogle = async function(){
   }
 }
 
-window.elegirRolGoogleAlumno = async function(){
+window.mostrarFormAlumnoGoogle = function(){
   if(!pendingGoogleUser) return;
+  const zoneSelect = document.getElementById('ga_zone');
+  if(zoneSelect.options.length <= 1) populateZoneSelect(zoneSelect);
+  document.getElementById('googleRoleChoice').style.display = 'none';
+  document.getElementById('googleAlumnoForm').style.display = 'block';
+}
+
+window.finalizarRegistroAlumnoGoogle = async function(){
+  if(!pendingGoogleUser) return;
+  const phone = document.getElementById('ga_phone').value.trim();
+  const zone = document.getElementById('ga_zone').value;
+  if(!phone){ toast('Ingresa tu WhatsApp para continuar', true); return; }
+  if(!zone){ toast('Selecciona tu zona para continuar', true); return; }
   try{
     await setDoc(doc(db,"usuarios",pendingGoogleUser.uid), {
       name: pendingGoogleUser.name,
       email: pendingGoogleUser.email,
       role: "alumno",
       creditos: CREDITOS_INICIALES,
-      phone: "",
-      zone: "",
+      phone,
+      zone,
       photoURL: pendingGoogleUser.photo,
       createdAt: serverTimestamp()
     });
     document.getElementById('googleRoleModal').classList.remove('active');
+    // Dejamos el modal listo para la próxima vez que alguien más entre por Google
+    document.getElementById('googleRoleChoice').style.display = 'block';
+    document.getElementById('googleAlumnoForm').style.display = 'none';
     toast('¡Bienvenido a Compás! 🎵');
   }catch(e){ console.error(e); toast('No se pudo completar el registro', true); }
 }
+
 window.elegirRolGoogleProfesor = function(){
   document.getElementById('googleRoleModal').classList.remove('active');
   startWizard();
