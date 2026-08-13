@@ -643,10 +643,11 @@ const MODALIDADES = [
    (antes de este cambio) para no romperles la ficha hasta que la editen. */
 function modalidadPillsHtml(t){
   const ids = (t && t.modalidades && t.modalidades.length) ? t.modalidades : (t && t.modalidad ? [t.modalidad] : []);
-  return ids.map(id=>{
-    const m = MODALIDADES.find(x=>x.id===id);
-    return `<span class="tag-pill modo">${m ? m.label : id}</span>`;
-  }).join('');
+  return ids
+    .map(id => MODALIDADES.find(m=>m.id===id))
+    .filter(Boolean) // descarta ids viejos que ya no existen (ej. "ambas", "presencial") en vez de mostrarlos en crudo
+    .map(m => `<span class="tag-pill modo">${m.label}</span>`)
+    .join('');
 }
 
 let TEACHERS = [];
