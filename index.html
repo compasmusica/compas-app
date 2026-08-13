@@ -128,6 +128,13 @@
   .tcard-bio{font-size:12.5px;color:var(--text-warm);opacity:0.85;margin-top:7px;line-height:1.5;}
   .tag-pill.modo{background:rgba(47,93,138,0.12);color:var(--teal-bright);border:1px solid rgba(47,93,138,0.22);}
 
+  /* Especialidad principal: se muestra primero, destacada, arriba de "también toca" */
+  .tcard-especialidad{font-size:12.5px;font-weight:700;color:var(--brass-bright);letter-spacing:0.2px;margin-top:2px;text-transform:uppercase;}
+
+  /* Sello dorado de Verificado UNM, más visible que un simple ícono */
+  .unm-seal{display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,#d9a94a,#b8842e);color:#2a1c05;font-size:10.5px;font-weight:700;padding:2px 8px 2px 6px;border-radius:20px;vertical-align:middle;box-shadow:0 1px 2px rgba(184,132,46,0.4);letter-spacing:0.2px;}
+  .unm-seal .seal-icon{font-size:11px;}
+
   /* Aviso con instrucciones para activar notificaciones ntfy */
   .ntfy-info{background:rgba(47,93,138,0.10);border:1px solid rgba(47,93,138,0.25);border-radius:10px;padding:13px 14px;margin-bottom:12px;}
   .ntfy-info .ntfy-title{font-weight:600;color:var(--text-warm);margin-bottom:6px;font-size:13.5px;}
@@ -623,7 +630,7 @@ const NTFY_TOPIC = "compas-aacfe-reservas-x7f2q";
 
 /* ============ DATOS BASE (catálogos, no van a Firestore) ============ */
 const ZONES = ["Callao","Cercado de Lima","San Miguel","Pueblo Libre","Jesús María","Magdalena","Breña","La Victoria","Surquillo","Miraflores","San Isidro","Barranco","Surco","San Borja","La Molina","Los Olivos","San Martín de Porres","Comas","Independencia","Ate","San Juan de Lurigancho","Villa El Salvador"];
-const INSTRUMENTS = ["Piano","Guitarra","Canto","Violín","Viola","Violonchelo","Contrabajo","Batería","Bajo","Cajón","Saxofón","Trompeta","Trombón","Eufonio","Tuba","Corno","Flauta","Clarinete","Charango","Cuatro","Solfeo / Teoría"];
+const INSTRUMENTS = ["Piano","Guitarra","Guitarra Eléctrica","Canto","Violín","Viola","Violonchelo","Contrabajo","Batería","Bajo","Cajón","Percusión","Saxofón","Trompeta","Trombón","Eufonio","Tuba","Corno Francés","Flauta Traversa","Flauta Dulce","Clarinete","Oboe","Fagot","Charango","Cuatro","Ukelele","Arpa","Acordeón","Bandoneón","Órgano","Producción Musical","Solfeo / Teoría"];
 const MODALIDADES = [
   {id:"domicilio", label:"Presencial a Domicilio"},
   {id:"estudio", label:"Presencial en Estudio / Local"},
@@ -806,10 +813,11 @@ function renderTeacherList(){
       <div class="avatar" style="${t.photo ? `background-image:url(${t.photo})`:''}">${t.photo?'':initials(t.name)}</div>
       <div class="tcard-body">
         <div class="tcard-top">
-          <div class="tcard-name">${t.name}${verificado ? ' <span class="verified-badge" title="Verificado: 3+ clases en Compás">✓</span>' : ''}${t.verificadoUNM===true ? ' <span class="verified-badge" title="Verificado UNM" style="background:var(--teal);">🎓</span>' : ''}</div>
+          <div class="tcard-name">${t.name}${verificado ? ' <span class="verified-badge" title="Verificado: 3+ clases en Compás">✓</span>' : ''}${t.verificadoUNM===true ? ' <span class="unm-seal" title="Verificado UNM"><span class="seal-icon">🥇</span>UNM</span>' : ''}</div>
           <div class="tcard-rate">S/ ${t.rate}/h</div>
         </div>
-        <div class="tcard-meta">${(t.instruments||[]).join(' · ')}</div>
+        ${t.especialidad ? `<div class="tcard-especialidad">${t.especialidad}</div>` : ''}
+        <div class="tcard-meta">${(t.instruments||[]).filter(i=>i!==t.especialidad).join(' · ')}</div>
         ${(t.anosExperiencia || t.formacion) ? `<div class="tcard-credentials">
           ${t.anosExperiencia ? `<span class="cred-item">🎼 ${t.anosExperiencia} años de experiencia</span>` : ''}
           ${t.formacion ? `<span class="cred-item">🎓 ${t.formacion}</span>` : ''}
@@ -1376,14 +1384,14 @@ window.goSuplencias = function(){
 }
 
 /* ============ WIZARD (crear perfil de profesor) ============ */
-const STEPS = ['nombre','foto','instrumentos','zona','tarifa','experiencia','formacion','modalidad','bio','video','contacto','preview'];
+const STEPS = ['nombre','foto','instrumentos','especialidad','zona','tarifa','experiencia','formacion','modalidad','bio','video','contacto','preview'];
 let stepIndex = 0;
-let draft = {name:"",photo:"",instruments:[],zone:"",rate:"",anosExperiencia:"",formacion:"",modalidades:[],bio:"",videoUrl:"",phone:"",email:"",pass:""};
+let draft = {name:"",photo:"",instruments:[],especialidad:"",zone:"",rate:"",anosExperiencia:"",formacion:"",modalidades:[],bio:"",videoUrl:"",phone:"",email:"",pass:""};
 
 window.startWizard = function(existing){
   draft = existing
-    ? {name:existing.name||"", photo:existing.photo||"", instruments:[...(existing.instruments||[])], zone:existing.zone||"", rate:existing.rate||"", anosExperiencia:existing.anosExperiencia||"", formacion:existing.formacion||"", modalidades: existing.modalidades ? [...existing.modalidades] : (existing.modalidad ? [existing.modalidad] : []), bio:existing.bio||"", videoUrl:existing.videoUrl||"", phone:existing.phone||"", email:"", pass:""}
-    : {name:"",photo:"",instruments:[],zone:"",rate:"",anosExperiencia:"",formacion:"",modalidades:[],bio:"",videoUrl:"",phone:"",email:"",pass:""};
+    ? {name:existing.name||"", photo:existing.photo||"", instruments:[...(existing.instruments||[])], especialidad:existing.especialidad||"", zone:existing.zone||"", rate:existing.rate||"", anosExperiencia:existing.anosExperiencia||"", formacion:existing.formacion||"", modalidades: existing.modalidades ? [...existing.modalidades] : (existing.modalidad ? [existing.modalidad] : []), bio:existing.bio||"", videoUrl:existing.videoUrl||"", phone:existing.phone||"", email:"", pass:""}
+    : {name:"",photo:"",instruments:[],especialidad:"",zone:"",rate:"",anosExperiencia:"",formacion:"",modalidades:[],bio:"",videoUrl:"",phone:"",email:"",pass:""};
   stepIndex = 0;
   switchView('wizard');
   renderStep();
@@ -1426,6 +1434,7 @@ window.toggleModalidad = function(id){
   if(i>-1) draft.modalidades.splice(i,1); else draft.modalidades.push(id);
   renderStep();
 }
+window.setEspecialidad = function(instrumento){ draft.especialidad = instrumento; renderStep(); }
 
 function renderStep(){
   renderProgress();
@@ -1446,40 +1455,44 @@ function renderStep(){
     html = `<div class="step"><div class="step-eyebrow mono">Paso 3 de ${STEPS.length}</div><h2>¿Qué enseñas?</h2><div class="hint">Elige uno o varios instrumentos.</div>
       <div class="option-grid">${INSTRUMENTS.map(i=>`<div class="option-card ${draft.instruments.includes(i)?'selected':''}" onclick="toggleInstrument('${i}')">${i}</div>`).join('')}</div></div>`;
   }
+  else if(step==='especialidad'){
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 4 de ${STEPS.length}</div><h2>¿Cuál es tu especialidad?</h2><div class="hint">De todo lo que enseñas, elige tu instrumento o área principal. Es lo primero que van a ver de ti.</div>
+      <div class="option-grid">${draft.instruments.map(i=>`<div class="option-card ${draft.especialidad===i?'selected':''}" onclick="setEspecialidad('${i}')">${i}</div>`).join('')}</div></div>`;
+  }
   else if(step==='zona'){
-    html = `<div class="step"><div class="step-eyebrow mono">Paso 4 de ${STEPS.length}</div><h2>¿Desde qué zona enseñas?</h2><div class="hint">Así te encuentran alumnos cerca, sin gastar de más en pasaje.</div>
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 5 de ${STEPS.length}</div><h2>¿Desde qué zona enseñas?</h2><div class="hint">Así te encuentran alumnos cerca, sin gastar de más en pasaje.</div>
       <div class="field"><label>Distrito</label><select id="in_zone"><option value="">Selecciona tu distrito</option>${ZONES.map(z=>`<option value="${z}" ${draft.zone===z?'selected':''}>${z}</option>`).join('')}</select></div></div>`;
   }
   else if(step==='tarifa'){
-    html = `<div class="step"><div class="step-eyebrow mono">Paso 5 de ${STEPS.length}</div><h2>¿Cuánto cobras por hora?</h2><div class="hint">Puedes cambiarlo cuando quieras.</div>
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 6 de ${STEPS.length}</div><h2>¿Cuánto cobras por hora?</h2><div class="hint">Puedes cambiarlo cuando quieras.</div>
       <div class="field"><label>Tarifa por hora (S/)</label><input type="number" id="in_rate" value="${draft.rate}" placeholder="Ej. 40"></div></div>`;
   }
   else if(step==='experiencia'){
-    html = `<div class="step"><div class="step-eyebrow mono">Paso 6 de ${STEPS.length}</div><h2>¿Cuántos años de experiencia tienes?</h2><div class="hint">Como docente y/o como ejecutante. Esto genera confianza con los padres de familia.</div>
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 7 de ${STEPS.length}</div><h2>¿Cuántos años de experiencia tienes?</h2><div class="hint">Como docente y/o como ejecutante. Esto genera confianza con los padres de familia.</div>
       <div class="field"><label>Años de experiencia</label><input type="number" min="0" id="in_experiencia" value="${draft.anosExperiencia}" placeholder="Ej. 6"></div></div>`;
   }
   else if(step==='formacion'){
-    html = `<div class="step"><div class="step-eyebrow mono">Paso 7 de ${STEPS.length}</div><h2>Tu formación académica</h2><div class="hint">Año de estudio o egreso de la UNM. Ej. "Egresado UNM 2019" o "UNM, 8vo ciclo".</div>
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 8 de ${STEPS.length}</div><h2>Tu formación académica</h2><div class="hint">Año de estudio o egreso de la UNM. Ej. "Egresado UNM 2019" o "UNM, 8vo ciclo".</div>
       <div class="field"><label>Formación académica</label><input type="text" id="in_formacion" maxlength="80" value="${draft.formacion}" placeholder="Ej. Egresado UNM 2019"></div></div>`;
   }
   else if(step==='modalidad'){
-    html = `<div class="step"><div class="step-eyebrow mono">Paso 8 de ${STEPS.length}</div><h2>¿Cómo das tus clases?</h2><div class="hint">Elige una o varias modalidades.</div>
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 9 de ${STEPS.length}</div><h2>¿Cómo das tus clases?</h2><div class="hint">Elige una o varias modalidades.</div>
       <div class="option-grid">${MODALIDADES.map(m=>`<div class="option-card ${draft.modalidades.includes(m.id)?'selected':''}" onclick="toggleModalidad('${m.id}')">${m.label}</div>`).join('')}</div></div>`;
   }
   else if(step==='bio'){
-    html = `<div class="step"><div class="step-eyebrow mono">Paso 9 de ${STEPS.length}</div><h2>Cuéntanos tu historia, corto</h2><div class="hint">Tu reseña profesional. Máximo 160 caracteres.</div>
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 10 de ${STEPS.length}</div><h2>Cuéntanos tu historia, corto</h2><div class="hint">Tu reseña profesional. Máximo 160 caracteres.</div>
       <div class="field"><label>Breve historia</label><textarea id="in_bio" maxlength="160" oninput="document.getElementById('bioCount').textContent=this.value.length">${draft.bio}</textarea><div class="counter"><span id="bioCount">${draft.bio.length}</span>/160</div></div></div>`;
   }
   else if(step==='video'){
-    html = `<div class="step"><div class="step-eyebrow mono">Paso 10 de ${STEPS.length}</div><h2>¿Tienes un video tocando o enseñando?</h2><div class="hint">Opcional. Pega el link de YouTube o Drive.</div>
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 11 de ${STEPS.length}</div><h2>¿Tienes un video tocando o enseñando?</h2><div class="hint">Opcional. Pega el link de YouTube o Drive.</div>
       <div class="field"><label>Link del video</label><input type="url" id="in_video" value="${draft.videoUrl}" placeholder="https://youtube.com/..."></div></div>`;
   }
   else if(step==='contacto'){
     if(auth.currentUser){
-      html = `<div class="step"><div class="step-eyebrow mono">Paso 11 de ${STEPS.length}</div><h2>¿A qué WhatsApp te contactan?</h2><div class="hint">Ya tienes una cuenta activa — esto solo completa tu perfil de profesor, no crea una cuenta nueva.</div>
+      html = `<div class="step"><div class="step-eyebrow mono">Paso 12 de ${STEPS.length}</div><h2>¿A qué WhatsApp te contactan?</h2><div class="hint">Ya tienes una cuenta activa — esto solo completa tu perfil de profesor, no crea una cuenta nueva.</div>
         <div class="field"><label>WhatsApp</label><input type="tel" id="in_phone" value="${draft.phone}" placeholder="+51 999 999 999"></div></div>`;
     } else {
-      html = `<div class="step"><div class="step-eyebrow mono">Paso 11 de ${STEPS.length}</div><h2>Crea tu cuenta de profesor</h2><div class="hint">La usarás para publicar suplencias y administrar tu perfil.</div>
+      html = `<div class="step"><div class="step-eyebrow mono">Paso 12 de ${STEPS.length}</div><h2>Crea tu cuenta de profesor</h2><div class="hint">La usarás para publicar suplencias y administrar tu perfil.</div>
         <div class="field"><label>WhatsApp</label><input type="tel" id="in_phone" value="${draft.phone}" placeholder="+51 999 999 999"></div>
         <div class="field"><label>Correo</label><input type="email" id="in_email" value="${draft.email}" placeholder="tucorreo@ejemplo.com"></div>
         <div class="field"><label>Contraseña</label><input type="password" id="in_pass" placeholder="Mínimo 6 caracteres"></div>
@@ -1494,7 +1507,8 @@ function renderStep(){
           <div class="avatar" style="${draft.photo?`background-image:url(${draft.photo})`:''}">${draft.photo?'':(draft.name?initials(draft.name):'?')}</div>
           <div class="tcard-body">
             <div class="tcard-top"><div class="tcard-name">${draft.name || 'Tu nombre'}</div><div class="tcard-rate">S/ ${draft.rate||'--'}/h</div></div>
-            <div class="tcard-meta">${draft.instruments.join(' · ')||'Instrumentos'}</div>
+            ${draft.especialidad ? `<div class="tcard-especialidad">${draft.especialidad}</div>` : ''}
+            <div class="tcard-meta">${draft.instruments.filter(i=>i!==draft.especialidad).join(' · ')||''}</div>
             ${(draft.anosExperiencia || draft.formacion) ? `<div class="tcard-credentials">
               ${draft.anosExperiencia ? `<span class="cred-item">🎼 ${draft.anosExperiencia} años de experiencia</span>` : ''}
               ${draft.formacion ? `<span class="cred-item">🎓 ${draft.formacion}</span>` : ''}
@@ -1564,6 +1578,12 @@ window.collectStepAndNext = function(){
   }
   else if(step==='instrumentos'){
     if(draft.instruments.length===0){ toast('Elige al menos un instrumento', true); return; }
+    // Si eligió un solo instrumento, ya sabemos cuál es su especialidad sin preguntarle otra vez.
+    if(draft.instruments.length===1) draft.especialidad = draft.instruments[0];
+    if(draft.especialidad && !draft.instruments.includes(draft.especialidad)) draft.especialidad = "";
+  }
+  else if(step==='especialidad'){
+    if(!draft.especialidad){ toast('Elige cuál es tu especialidad principal', true); return; }
   }
   else if(step==='zona'){
     const v = document.getElementById('in_zone').value;
@@ -1658,6 +1678,7 @@ window.publishProfile = async function(){
     const datosProfesor = {
       name: draft.name,
       instruments: draft.instruments,
+      especialidad: draft.especialidad,
       zone: draft.zone,
       rate: Number(draft.rate),
       anosExperiencia: Number(draft.anosExperiencia) || 0,
@@ -1712,7 +1733,7 @@ function renderMyProfilePreview(){
     estadoHtml = `<div class="pausa-banner" style="background:rgba(107,107,114,0.14);border-color:rgba(107,107,114,0.3);color:var(--text-dim);">Tu perfil está pausado. No aparece en "Explorar" hasta que lo reactives.</div>`;
   }
 
-  const unmBadge = t.verificadoUNM === true ? ' <span class="verified-badge" title="Verificado UNM" style="background:var(--teal);">🎓</span>' : '';
+  const unmBadge = t.verificadoUNM === true ? ' <span class="unm-seal" title="Verificado UNM"><span class="seal-icon">🥇</span>UNM</span>' : '';
 
   wrap.innerHTML = `<div class="mono" style="color:var(--text-dim);margin-bottom:10px;">Tu perfil</div>
     ${estadoHtml}
@@ -1720,7 +1741,8 @@ function renderMyProfilePreview(){
       <div class="avatar" style="${t.photo?`background-image:url(${t.photo})`:''}">${t.photo?'':initials(t.name)}</div>
       <div class="tcard-body">
         <div class="tcard-top"><div class="tcard-name">${t.name}${unmBadge}</div><div class="tcard-rate">S/ ${t.rate}/h</div></div>
-        <div class="tcard-meta">${(t.instruments||[]).join(' · ')}</div>
+        ${t.especialidad ? `<div class="tcard-especialidad">${t.especialidad}</div>` : ''}
+        <div class="tcard-meta">${(t.instruments||[]).filter(i=>i!==t.especialidad).join(' · ')}</div>
         ${(t.anosExperiencia || t.formacion) ? `<div class="tcard-credentials">
           ${t.anosExperiencia ? `<span class="cred-item">🎼 ${t.anosExperiencia} años de experiencia</span>` : ''}
           ${t.formacion ? `<span class="cred-item">🎓 ${t.formacion}</span>` : ''}
