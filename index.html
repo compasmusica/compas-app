@@ -122,6 +122,18 @@
   .star{color:rgba(32,36,46,0.2);cursor:pointer;transition:color .15s ease;}
   .star.on{color:var(--brass-bright);}
 
+  /* Credenciales (experiencia + formación académica) y bio en la ficha del profesor */
+  .tcard-credentials{display:flex;flex-direction:column;gap:2px;margin-top:7px;}
+  .cred-item{font-size:11.5px;color:var(--text-dim);display:flex;align-items:center;gap:5px;}
+  .tcard-bio{font-size:12.5px;color:var(--text-warm);opacity:0.85;margin-top:7px;line-height:1.5;}
+  .tag-pill.modo{background:rgba(47,93,138,0.12);color:var(--teal-bright);border:1px solid rgba(47,93,138,0.22);}
+
+  /* Aviso con instrucciones para activar notificaciones ntfy */
+  .ntfy-info{background:rgba(47,93,138,0.10);border:1px solid rgba(47,93,138,0.25);border-radius:10px;padding:13px 14px;margin-bottom:12px;}
+  .ntfy-info .ntfy-title{font-weight:600;color:var(--text-warm);margin-bottom:6px;font-size:13.5px;}
+  .ntfy-info .ntfy-step{font-size:12px;color:var(--text-dim);line-height:1.55;}
+  .ntfy-info .ntfy-links{display:flex;gap:8px;margin-top:10px;}
+
   /* Chat interno */
   .chat-header{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid rgba(32,36,46,0.08);}
   .chat-back{background:none;border:none;color:var(--text-dim);font-size:20px;padding:4px;}
@@ -612,7 +624,23 @@ const NTFY_TOPIC = "compas-aacfe-reservas-x7f2q";
 /* ============ DATOS BASE (catálogos, no van a Firestore) ============ */
 const ZONES = ["Callao","Cercado de Lima","San Miguel","Pueblo Libre","Jesús María","Magdalena","Breña","La Victoria","Surquillo","Miraflores","San Isidro","Barranco","Surco","San Borja","La Molina","Los Olivos","San Martín de Porres","Comas","Independencia","Ate","San Juan de Lurigancho","Villa El Salvador"];
 const INSTRUMENTS = ["Piano","Guitarra","Canto","Violín","Viola","Violonchelo","Contrabajo","Batería","Bajo","Cajón","Saxofón","Trompeta","Trombón","Eufonio","Tuba","Corno","Flauta","Clarinete","Charango","Cuatro","Solfeo / Teoría"];
-const MODALIDADES = [{id:"presencial",label:"Presencial"},{id:"virtual",label:"Virtual"},{id:"ambas",label:"Ambas"}];
+const MODALIDADES = [
+  {id:"domicilio", label:"Presencial a Domicilio"},
+  {id:"estudio", label:"Presencial en Estudio / Local"},
+  {id:"virtual", label:"Virtual Programada"},
+  {id:"microclase", label:"Microclase / Asesoría Express"},
+  {id:"instantaneo", label:"Compás Al Instante"}
+];
+/* Devuelve el HTML de las pills de modalidad para un array de ids.
+   Acepta perfiles antiguos que todavía tengan el campo singular "modalidad"
+   (antes de este cambio) para no romperles la ficha hasta que la editen. */
+function modalidadPillsHtml(t){
+  const ids = (t && t.modalidades && t.modalidades.length) ? t.modalidades : (t && t.modalidad ? [t.modalidad] : []);
+  return ids.map(id=>{
+    const m = MODALIDADES.find(x=>x.id===id);
+    return `<span class="tag-pill modo">${m ? m.label : id}</span>`;
+  }).join('');
+}
 
 let TEACHERS = [];
 let SUPLENCIAS = [];
@@ -782,9 +810,14 @@ function renderTeacherList(){
           <div class="tcard-rate">S/ ${t.rate}/h</div>
         </div>
         <div class="tcard-meta">${(t.instruments||[]).join(' · ')}</div>
+        ${(t.anosExperiencia || t.formacion) ? `<div class="tcard-credentials">
+          ${t.anosExperiencia ? `<span class="cred-item">🎼 ${t.anosExperiencia} años de experiencia</span>` : ''}
+          ${t.formacion ? `<span class="cred-item">🎓 ${t.formacion}</span>` : ''}
+        </div>` : ''}
+        ${t.bio ? `<div class="tcard-bio">${t.bio}</div>` : ''}
         <div class="tcard-tags">
           <span class="tag-pill zone">${t.zone}</span>
-          <span class="tag-pill">${MODALIDADES.find(m=>m.id===t.modalidad)?.label || t.modalidad}</span>
+          ${modalidadPillsHtml(t)}
           ${ratingHtml}
           ${pausaHtml}
           ${zonaExtraHtml}
@@ -1343,14 +1376,14 @@ window.goSuplencias = function(){
 }
 
 /* ============ WIZARD (crear perfil de profesor) ============ */
-const STEPS = ['nombre','foto','instrumentos','zona','tarifa','modalidad','bio','video','contacto','preview'];
+const STEPS = ['nombre','foto','instrumentos','zona','tarifa','experiencia','formacion','modalidad','bio','video','contacto','preview'];
 let stepIndex = 0;
-let draft = {name:"",photo:"",instruments:[],zone:"",rate:"",modalidad:"",bio:"",videoUrl:"",phone:"",email:"",pass:""};
+let draft = {name:"",photo:"",instruments:[],zone:"",rate:"",anosExperiencia:"",formacion:"",modalidades:[],bio:"",videoUrl:"",phone:"",email:"",pass:""};
 
 window.startWizard = function(existing){
   draft = existing
-    ? {name:existing.name||"", photo:existing.photo||"", instruments:[...(existing.instruments||[])], zone:existing.zone||"", rate:existing.rate||"", modalidad:existing.modalidad||"", bio:existing.bio||"", videoUrl:existing.videoUrl||"", phone:existing.phone||"", email:"", pass:""}
-    : {name:"",photo:"",instruments:[],zone:"",rate:"",modalidad:"",bio:"",videoUrl:"",phone:"",email:"",pass:""};
+    ? {name:existing.name||"", photo:existing.photo||"", instruments:[...(existing.instruments||[])], zone:existing.zone||"", rate:existing.rate||"", anosExperiencia:existing.anosExperiencia||"", formacion:existing.formacion||"", modalidades: existing.modalidades ? [...existing.modalidades] : (existing.modalidad ? [existing.modalidad] : []), bio:existing.bio||"", videoUrl:existing.videoUrl||"", phone:existing.phone||"", email:"", pass:""}
+    : {name:"",photo:"",instruments:[],zone:"",rate:"",anosExperiencia:"",formacion:"",modalidades:[],bio:"",videoUrl:"",phone:"",email:"",pass:""};
   stepIndex = 0;
   switchView('wizard');
   renderStep();
@@ -1388,7 +1421,11 @@ window.toggleInstrument = function(inst){
   renderStep();
 }
 
-window.setModalidad = function(id){ draft.modalidad = id; renderStep(); }
+window.toggleModalidad = function(id){
+  const i = draft.modalidades.indexOf(id);
+  if(i>-1) draft.modalidades.splice(i,1); else draft.modalidades.push(id);
+  renderStep();
+}
 
 function renderStep(){
   renderProgress();
@@ -1417,24 +1454,32 @@ function renderStep(){
     html = `<div class="step"><div class="step-eyebrow mono">Paso 5 de ${STEPS.length}</div><h2>¿Cuánto cobras por hora?</h2><div class="hint">Puedes cambiarlo cuando quieras.</div>
       <div class="field"><label>Tarifa por hora (S/)</label><input type="number" id="in_rate" value="${draft.rate}" placeholder="Ej. 40"></div></div>`;
   }
+  else if(step==='experiencia'){
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 6 de ${STEPS.length}</div><h2>¿Cuántos años de experiencia tienes?</h2><div class="hint">Como docente y/o como ejecutante. Esto genera confianza con los padres de familia.</div>
+      <div class="field"><label>Años de experiencia</label><input type="number" min="0" id="in_experiencia" value="${draft.anosExperiencia}" placeholder="Ej. 6"></div></div>`;
+  }
+  else if(step==='formacion'){
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 7 de ${STEPS.length}</div><h2>Tu formación académica</h2><div class="hint">Año de estudio o egreso de la UNM. Ej. "Egresado UNM 2019" o "UNM, 8vo ciclo".</div>
+      <div class="field"><label>Formación académica</label><input type="text" id="in_formacion" maxlength="80" value="${draft.formacion}" placeholder="Ej. Egresado UNM 2019"></div></div>`;
+  }
   else if(step==='modalidad'){
-    html = `<div class="step"><div class="step-eyebrow mono">Paso 6 de ${STEPS.length}</div><h2>¿Cómo das tus clases?</h2>
-      <div class="option-grid thirds">${MODALIDADES.map(m=>`<div class="option-card ${draft.modalidad===m.id?'selected':''}" onclick="setModalidad('${m.id}')">${m.label}</div>`).join('')}</div></div>`;
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 8 de ${STEPS.length}</div><h2>¿Cómo das tus clases?</h2><div class="hint">Elige una o varias modalidades.</div>
+      <div class="option-grid">${MODALIDADES.map(m=>`<div class="option-card ${draft.modalidades.includes(m.id)?'selected':''}" onclick="toggleModalidad('${m.id}')">${m.label}</div>`).join('')}</div></div>`;
   }
   else if(step==='bio'){
-    html = `<div class="step"><div class="step-eyebrow mono">Paso 7 de ${STEPS.length}</div><h2>Cuéntanos tu historia, corto</h2><div class="hint">Formación, experiencia. Máximo 160 caracteres.</div>
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 9 de ${STEPS.length}</div><h2>Cuéntanos tu historia, corto</h2><div class="hint">Tu reseña profesional. Máximo 160 caracteres.</div>
       <div class="field"><label>Breve historia</label><textarea id="in_bio" maxlength="160" oninput="document.getElementById('bioCount').textContent=this.value.length">${draft.bio}</textarea><div class="counter"><span id="bioCount">${draft.bio.length}</span>/160</div></div></div>`;
   }
   else if(step==='video'){
-    html = `<div class="step"><div class="step-eyebrow mono">Paso 8 de ${STEPS.length}</div><h2>¿Tienes un video tocando o enseñando?</h2><div class="hint">Opcional. Pega el link de YouTube o Drive.</div>
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 10 de ${STEPS.length}</div><h2>¿Tienes un video tocando o enseñando?</h2><div class="hint">Opcional. Pega el link de YouTube o Drive.</div>
       <div class="field"><label>Link del video</label><input type="url" id="in_video" value="${draft.videoUrl}" placeholder="https://youtube.com/..."></div></div>`;
   }
   else if(step==='contacto'){
     if(auth.currentUser){
-      html = `<div class="step"><div class="step-eyebrow mono">Paso 9 de ${STEPS.length}</div><h2>¿A qué WhatsApp te contactan?</h2><div class="hint">Ya tienes una cuenta activa — esto solo completa tu perfil de profesor, no crea una cuenta nueva.</div>
+      html = `<div class="step"><div class="step-eyebrow mono">Paso 11 de ${STEPS.length}</div><h2>¿A qué WhatsApp te contactan?</h2><div class="hint">Ya tienes una cuenta activa — esto solo completa tu perfil de profesor, no crea una cuenta nueva.</div>
         <div class="field"><label>WhatsApp</label><input type="tel" id="in_phone" value="${draft.phone}" placeholder="+51 999 999 999"></div></div>`;
     } else {
-      html = `<div class="step"><div class="step-eyebrow mono">Paso 9 de ${STEPS.length}</div><h2>Crea tu cuenta de profesor</h2><div class="hint">La usarás para publicar suplencias y administrar tu perfil.</div>
+      html = `<div class="step"><div class="step-eyebrow mono">Paso 11 de ${STEPS.length}</div><h2>Crea tu cuenta de profesor</h2><div class="hint">La usarás para publicar suplencias y administrar tu perfil.</div>
         <div class="field"><label>WhatsApp</label><input type="tel" id="in_phone" value="${draft.phone}" placeholder="+51 999 999 999"></div>
         <div class="field"><label>Correo</label><input type="email" id="in_email" value="${draft.email}" placeholder="tucorreo@ejemplo.com"></div>
         <div class="field"><label>Contraseña</label><input type="password" id="in_pass" placeholder="Mínimo 6 caracteres"></div>
@@ -1450,7 +1495,11 @@ function renderStep(){
           <div class="tcard-body">
             <div class="tcard-top"><div class="tcard-name">${draft.name || 'Tu nombre'}</div><div class="tcard-rate">S/ ${draft.rate||'--'}/h</div></div>
             <div class="tcard-meta">${draft.instruments.join(' · ')||'Instrumentos'}</div>
-            <div class="tcard-tags"><span class="tag-pill zone">${draft.zone||'Zona'}</span><span class="tag-pill">${draft.modalidad ? MODALIDADES.find(m=>m.id===draft.modalidad).label : 'Modalidad'}</span></div>
+            ${(draft.anosExperiencia || draft.formacion) ? `<div class="tcard-credentials">
+              ${draft.anosExperiencia ? `<span class="cred-item">🎼 ${draft.anosExperiencia} años de experiencia</span>` : ''}
+              ${draft.formacion ? `<span class="cred-item">🎓 ${draft.formacion}</span>` : ''}
+            </div>` : ''}
+            <div class="tcard-tags"><span class="tag-pill zone">${draft.zone||'Zona'}</span>${draft.modalidades.length ? modalidadPillsHtml(draft) : '<span class="tag-pill">Modalidad</span>'}</div>
           </div>
         </div>
         ${draft.bio ? `<p style="font-size:13px;color:var(--text-dim);margin-top:14px;line-height:1.5;">${draft.bio}</p>`:''}
@@ -1526,8 +1575,18 @@ window.collectStepAndNext = function(){
     if(!v){ shake('in_rate'); return; }
     draft.rate = v;
   }
+  else if(step==='experiencia'){
+    const v = document.getElementById('in_experiencia').value;
+    if(!v){ shake('in_experiencia'); return; }
+    draft.anosExperiencia = v;
+  }
+  else if(step==='formacion'){
+    const v = document.getElementById('in_formacion').value.trim();
+    if(!v){ shake('in_formacion'); return; }
+    draft.formacion = v;
+  }
   else if(step==='modalidad'){
-    if(!draft.modalidad){ toast('Elige una modalidad', true); return; }
+    if(draft.modalidades.length===0){ toast('Elige al menos una modalidad', true); return; }
   }
   else if(step==='bio'){
     draft.bio = document.getElementById('in_bio').value.trim();
@@ -1601,7 +1660,10 @@ window.publishProfile = async function(){
       instruments: draft.instruments,
       zone: draft.zone,
       rate: Number(draft.rate),
-      modalidad: draft.modalidad,
+      anosExperiencia: Number(draft.anosExperiencia) || 0,
+      formacion: draft.formacion,
+      modalidades: draft.modalidades,
+      modalidad: draft.modalidades[0] || '', // se mantiene por compatibilidad con datos/reportes antiguos
       bio: draft.bio,
       videoUrl: draft.videoUrl,
       phone: draft.phone,
@@ -1659,14 +1721,27 @@ function renderMyProfilePreview(){
       <div class="tcard-body">
         <div class="tcard-top"><div class="tcard-name">${t.name}${unmBadge}</div><div class="tcard-rate">S/ ${t.rate}/h</div></div>
         <div class="tcard-meta">${(t.instruments||[]).join(' · ')}</div>
-        <div class="tcard-tags"><span class="tag-pill zone">${t.zone}</span><span class="tag-pill">${MODALIDADES.find(m=>m.id===t.modalidad)?.label}</span></div>
+        ${(t.anosExperiencia || t.formacion) ? `<div class="tcard-credentials">
+          ${t.anosExperiencia ? `<span class="cred-item">🎼 ${t.anosExperiencia} años de experiencia</span>` : ''}
+          ${t.formacion ? `<span class="cred-item">🎓 ${t.formacion}</span>` : ''}
+        </div>` : ''}
+        ${t.bio ? `<div class="tcard-bio">${t.bio}</div>` : ''}
+        <div class="tcard-tags"><span class="tag-pill zone">${t.zone}</span>${modalidadPillsHtml(t)}</div>
       </div>
     </div>
     <button class="btn btn-ghost btn-block" style="margin-top:12px;" onclick="editMyProfile()">Editar mi perfil</button>
     <button class="btn btn-teal btn-block" style="margin-top:10px;" onclick="openHorariosModal()">Mis horarios</button>
     <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="openZonasModal()">Zonas adicionales</button>
     <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="openVerificacionModal()">${t.verificadoUNM===true ? 'Verificación UNM ✓' : (t.verificacionUNMPendiente===true ? 'Verificación en revisión…' : 'Verificarme con la UNM')}</button>
-    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="activarNotificacionesProfesor()">🔔 Activar mis notificaciones</button>
+    <div class="ntfy-info" style="margin-top:16px;">
+      <div class="ntfy-title">🔔 Recibe avisos al instante</div>
+      <div class="ntfy-step"><b>Paso 1:</b> Descarga la app <b>ntfy</b> (gratis) desde Play Store o App Store.<br><b>Paso 2:</b> Toca "Activar Notificaciones" abajo — vincula tu canal en 1 solo toque.</div>
+      <div class="ntfy-links">
+        <a class="btn btn-ghost btn-sm" href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener">Android</a>
+        <a class="btn btn-ghost btn-sm" href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank" rel="noopener">iPhone</a>
+      </div>
+    </div>
+    <button class="btn btn-teal btn-block" style="margin-top:0;" onclick="activarNotificacionesProfesor()">🔔 Activar Notificaciones</button>
     <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="togglePerfilOculto()">${t.perfilOculto===true ? 'Reactivar mi perfil' : 'Pausar mi perfil'}</button>
     <button class="btn btn-ghost btn-block" style="margin-top:10px;color:var(--danger);" onclick="darDeBaja()">Darme de baja</button>`;
 }
@@ -1737,7 +1812,11 @@ window.activarNotificacionesProfesor = function(){
     toast('Tu perfil no tiene un canal de notificaciones todavía. Edítalo y vuelve a intentar.', true);
     return;
   }
-  alert('Se va a abrir la app ntfy para que actives tus notificaciones.\n\nSi todavía no la tienes instalada: búscala en Play Store como "ntfy" antes de continuar, e inténtalo de nuevo.');
+  // Si la app ntfy está instalada, el sistema operativo intercepta este link
+  // (App Links/Universal Links de ntfy.sh) y lo abre directo en la app, ya
+  // suscrito a tu canal. Si no está instalada, abre la página web de ntfy.sh,
+  // donde igual puede suscribirse, aunque las notificaciones en segundo plano
+  // son menos confiables que con la app nativa.
   window.open(`https://ntfy.sh/${currentEditingTeacher.ntfyTopic}`, '_blank');
 }
 
@@ -2374,7 +2453,10 @@ function generarTicketPDF(r, prof){
   campo('Alumno', r.alumnoNombre);
   campo('Profesor', r.profesorNombre);
   campo('Instrumento(s)', (prof.instruments||[]).join(', '));
-  campo('Modalidad', prof.modalidad || '-');
+  const modalidadesTexto = (prof.modalidades && prof.modalidades.length)
+    ? prof.modalidades.map(id => MODALIDADES.find(m=>m.id===id)?.label || id).join(', ')
+    : (prof.modalidad || '-');
+  campo('Modalidad', modalidadesTexto);
   campo('Horario', r.horario);
   campo('Monto total', `S/ ${r.precio}`);
   campo('Estado', 'Pago confirmado');
