@@ -169,6 +169,16 @@
   .toggle-switch .knob{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--text-warm);transition:left .15s ease;}
   .toggle-switch.on .knob{left:21px;}
 
+  /* Selector de días (múltiple) al armar el horario semanal */
+  .dias-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:2px;}
+  .dia-chip{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--ink-2);border:1.5px solid rgba(32,36,46,0.12);font-size:11.5px;font-weight:700;color:var(--text-dim);cursor:pointer;}
+  .dia-chip.selected{background:var(--brass);border-color:var(--brass);color:var(--text-warm);}
+  .patron-row{background:var(--ink-2);border-radius:10px;padding:10px 14px;margin-bottom:8px;font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .patron-row button{background:none;border:none;color:var(--text-dim);font-size:15px;padding:2px 4px;flex-shrink:0;}
+  .bloqueo-row{background:rgba(193,84,63,0.08);border:1px solid rgba(193,84,63,0.2);border-radius:10px;padding:9px 14px;margin-bottom:8px;font-size:12.5px;display:flex;justify-content:space-between;align-items:center;}
+  .bloqueo-row button{background:none;border:none;color:var(--teal-bright);font-size:12px;font-weight:600;}
+  .horarios-resumen{font-size:12px;color:var(--text-dim);background:var(--ink-2);border-radius:10px;padding:10px 14px;margin-bottom:14px;}
+
   .empty-state{text-align:center;padding:50px 20px;color:var(--text-dim);}
   .empty-state .icon{font-size:34px;margin-bottom:10px;opacity:0.6;}
   .empty-state p{font-size:13.5px;line-height:1.5;}
@@ -491,7 +501,7 @@
   <div class="modal-overlay" id="horariosModal">
     <div class="modal">
       <h3>Mis horarios</h3>
-      <div class="hint">Marca cuándo estás disponible. El alumno solo verá lo que marques aquí.</div>
+      <div class="hint">Arma tu horario semanal una sola vez — el sistema genera y mantiene tus próximas 4 semanas de clases disponibles automáticamente, y libera solo lo que ya pasó.</div>
 
       <div class="toggle-row">
         <div>
@@ -505,16 +515,25 @@
         <input type="text" id="pausaMensaje" placeholder="Ej. De viaje, vuelvo el 28 de julio">
       </div>
 
-      <div class="admin-section-title mono">Bloques disponibles</div>
-      <div id="horariosList"></div>
+      <div class="admin-section-title mono">Tu horario semanal</div>
+      <div id="patronList"></div>
+      <div id="horariosResumen"></div>
 
-      <div class="admin-section-title mono">Agregar bloque</div>
-      <div class="field"><label>Día</label><select id="horario_dia"></select></div>
+      <div class="admin-section-title mono">Agregar horario</div>
+      <div class="field"><label>Días</label><div class="dias-chips" id="diasChips"></div></div>
       <div class="cta-row">
         <div class="field" style="flex:1;"><label>Desde</label><input type="time" id="horario_inicio"></div>
         <div class="field" style="flex:1;"><label>Hasta</label><input type="time" id="horario_fin"></div>
       </div>
-      <button class="btn btn-teal btn-block" onclick="agregarBloqueHorario()">+ Agregar bloque</button>
+      <button class="btn btn-teal btn-block" onclick="agregarPatron()">+ Agregar horario</button>
+
+      <div class="admin-section-title mono">Bloquear una fecha puntual</div>
+      <div class="hint" style="margin-top:-4px;">Para un día suelto que no puedas (ej. un concierto), sin tocar tu horario de siempre.</div>
+      <div id="bloqueosList"></div>
+      <div class="cta-row">
+        <div class="field" style="flex:1;"><label>Fecha</label><input type="date" id="bloqueo_fecha"></div>
+      </div>
+      <button class="btn btn-ghost btn-block" onclick="bloquearFechaPuntual()">Bloquear ese día</button>
 
       <button class="btn btn-primary btn-block" style="margin-top:18px;" onclick="guardarHorarios()">Guardar cambios</button>
       <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeHorariosModal()">Cerrar</button>
@@ -883,17 +902,19 @@ window.openSolicitudModal = function(teacherId){
   }
   document.getElementById('reservaModalBtn').style.display = 'block';
 
-  const disponibles = (solicitudTeacher.horarios || []).filter(b=>b.estado==='disponible');
-  const porDia = {};
-  disponibles.forEach(b=>{ (porDia[b.dia] = porDia[b.dia]||[]).push(b); });
-  const diasOrdenados = DIAS_SEMANA.filter(d=>porDia[d]);
+  // Filtro defensivo por fecha: aunque el profesor no haya abierto "Mis horarios"
+  // recientemente para regenerar, un bloque con fecha vencida nunca se muestra al alumno.
+  const disponibles = (solicitudTeacher.horarios || []).filter(b=>b.estado==='disponible' && b.fecha && b.fecha>=hoyISO());
+  const porFecha = {};
+  disponibles.forEach(b=>{ (porFecha[b.fecha] = porFecha[b.fecha]||[]).push(b); });
+  const fechasOrdenadas = Object.keys(porFecha).sort();
 
   const slotsHtml = disponibles.length
     ? `<div class="field"><label>Elige un horario disponible</label>
-        ${diasOrdenados.map(dia=>`
+        ${fechasOrdenadas.map(fecha=>`
           <div style="margin-bottom:10px;">
-            <div class="mono" style="color:var(--text-dim);font-size:11px;margin-bottom:6px;">${dia}</div>
-            ${porDia[dia].map(b=>`<span class="slot-pill" id="slot_${b.id}" onclick="seleccionarSlot('${b.id}','${b.dia} ${b.inicio}–${b.fin}')">${b.inicio}–${b.fin}</span>`).join('')}
+            <div class="mono" style="color:var(--text-dim);font-size:11px;margin-bottom:6px;text-transform:capitalize;">${formatFechaLarga(fecha)}</div>
+            ${porFecha[fecha].sort((a,b)=>a.inicio.localeCompare(b.inicio)).map(b=>`<span class="slot-pill" id="slot_${b.id}" onclick="seleccionarSlot('${b.id}','${formatFechaCorta(b.fecha)} · ${b.inicio}–${b.fin}','${b.fecha}')">${b.inicio}–${b.fin}</span>`).join('')}
           </div>
         `).join('')}
       </div>
@@ -921,31 +942,22 @@ window.openSolicitudModal = function(teacherId){
 }
 window.closeReservaModal = function(){ document.getElementById('reservaModal').classList.remove('active'); }
 
-window.seleccionarSlot = function(slotId, texto){
-  slotSeleccionado = { id: slotId, texto };
+window.seleccionarSlot = function(slotId, texto, fecha){
+  slotSeleccionado = { id: slotId, texto, fecha };
   document.querySelectorAll('.slot-pill').forEach(el=>el.classList.remove('selected'));
   document.getElementById(`slot_${slotId}`).classList.add('selected');
 }
 
-/* Calcula la próxima fecha (YYYY-MM-DD) en que cae un día de la semana dado. */
-function proximaFecha(diaTexto, semanasAdelante){
-  const dias = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"]; // igual a Date.getDay()
-  const targetIdx = dias.indexOf(diaTexto);
-  const hoy = new Date();
-  let diff = (targetIdx - hoy.getDay() + 7) % 7;
-  if(diff === 0) diff = 7; // si cae hoy, damos margen y tomamos la próxima semana
-  const fecha = new Date(hoy);
-  fecha.setDate(hoy.getDate() + diff + (semanasAdelante*7));
-  return fecha.toLocaleDateString('es-PE', { day: 'numeric', month: 'short' });
-}
+/* Ya no hace falta "adivinar" la próxima fecha por nombre de día: cada slot ahora
+   trae su fecha real (slotSeleccionado.fecha), así que las clases de un paquete
+   simplemente suman 7 días exactos a partir de esa fecha real. Ver sumarDiasISO(). */
 
 window.submitSolicitud = async function(){
-  const disponibles = (solicitudTeacher.horarios || []).filter(b=>b.estado==='disponible');
-  let horario, diaSemana = null, numClases = 1;
+  const disponibles = (solicitudTeacher.horarios || []).filter(b=>b.estado==='disponible' && b.fecha && b.fecha>=hoyISO());
+  let horario, numClases = 1;
   if(disponibles.length){
     if(!slotSeleccionado){ toast('Elige uno de los horarios disponibles', true); return; }
     horario = slotSeleccionado.texto;
-    diaSemana = slotSeleccionado.texto.split(' ')[0]; // "Martes 16:00–17:00" -> "Martes"
     numClases = Number(document.getElementById('sol_numclases')?.value || 1);
   } else {
     horario = document.getElementById('sol_horario')?.value.trim();
@@ -960,7 +972,7 @@ window.submitSolicitud = async function(){
     const clases = numClases > 1
       ? Array.from({length:numClases}, (_,i)=>({
           numero: i+1,
-          fecha: diaSemana ? proximaFecha(diaSemana, i) : null,
+          fecha: slotSeleccionado?.fecha ? formatFechaCorta(sumarDiasISO(slotSeleccionado.fecha, i*7)) : null,
           estado: 'pendiente'
         }))
       : null;
@@ -1883,30 +1895,72 @@ window.setFaqTab = function(tab){
 
 /* ============ MIS HORARIOS (disponibilidad del profesor) ============ */
 const DIAS_SEMANA = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
-let horariosDraft = [];
+const DIAS_CORTO = {"Lunes":"Lu","Martes":"Ma","Miércoles":"Mi","Jueves":"Ju","Viernes":"Vi","Sábado":"Sá","Domingo":"Do"};
+const SEMANAS_ADELANTE = 4; // ventana de disponibilidad que el sistema mantiene siempre generada
+
+let horariosDraft = [];       // bloques con fecha real, generados a partir del patrón (lo que ven los alumnos)
+let horarioPatronDraft = [];  // horario semanal recurrente del profesor (lo que el profesor configura)
+let diasSeleccionados = [];   // días marcados en el chip-selector al agregar un horario nuevo
 let pausaDraft = false;
+
+function horaAMinutos(t){ const [h,m] = t.split(':').map(Number); return h*60+m; }
+function minutosAHora(m){ const h = Math.floor(m/60); const mm = m%60; return String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0'); }
+function fechaISO(d){ const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
+function hoyISO(){ return fechaISO(new Date()); }
+function fechaDesdeISO(iso){ const [y,m,d] = iso.split('-').map(Number); return new Date(y, m-1, d); }
+function formatFechaLarga(iso){ return fechaDesdeISO(iso).toLocaleDateString('es-PE',{weekday:'long', day:'numeric', month:'long'}); }
+function formatFechaCorta(iso){ return fechaDesdeISO(iso).toLocaleDateString('es-PE',{day:'numeric', month:'short'}); }
+function sumarDiasISO(iso, dias){ const d = fechaDesdeISO(iso); d.setDate(d.getDate()+dias); return fechaISO(d); }
+
+/* Genera los bloques de 1h con fecha real para las próximas SEMANAS_ADELANTE semanas
+   a partir del patrón semanal. Conserva el estado (ocupado/bloqueado) de bloques que ya
+   existían en esa misma fecha+hora, y descarta automáticamente todo lo que ya pasó de fecha
+   — así es como se "liberan solas" las clases antiguas, sin que el profesor tenga que entrar
+   a hacerlo a mano. */
+function generarHorariosDesdePatron(patron, existentes){
+  const existentesPorClave = {};
+  (existentes||[]).forEach(b=>{ if(b.fecha) existentesPorClave[`${b.fecha}_${b.inicio}`] = b; });
+
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const nuevos = [];
+  for(let i=0; i<SEMANAS_ADELANTE*7; i++){
+    const d = new Date(hoy); d.setDate(hoy.getDate()+i);
+    const diaSemana = DIAS_SEMANA[(d.getDay()+6)%7]; // getDay(): 0=domingo
+    const entradasDelDia = (patron||[]).filter(p=>p.dias.includes(diaSemana));
+    if(!entradasDelDia.length) continue;
+    const fecha = fechaISO(d);
+    entradasDelDia.forEach(p=>{
+      let cursor = horaAMinutos(p.inicio);
+      const finMin = horaAMinutos(p.fin);
+      while(cursor < finMin){
+        const siguiente = Math.min(cursor+60, finMin);
+        const inicio = minutosAHora(cursor), fin = minutosAHora(siguiente);
+        const previo = existentesPorClave[`${fecha}_${inicio}`];
+        nuevos.push({ id: `${fecha}_${inicio}`, fecha, dia: diaSemana, inicio, fin, estado: previo ? previo.estado : 'disponible' });
+        cursor = siguiente;
+      }
+    });
+  }
+  return nuevos;
+}
 
 window.openHorariosModal = function(){
   if(!currentEditingTeacher){ toast('Primero publica tu perfil de profesor', true); return; }
-  horariosDraft = [...(currentEditingTeacher.horarios || [])];
+  horarioPatronDraft = (currentEditingTeacher.horarioPatron || []).map(p=>({...p, dias:[...p.dias]}));
+  // Si el profesor todavía tiene el formato antiguo (sin patrón, bloques sin fecha), no hay
+  // nada que migrar automáticamente — arrancamos en blanco y le pedimos que arme su horario de nuevo.
+  horariosDraft = generarHorariosDesdePatron(horarioPatronDraft, currentEditingTeacher.horarios || []);
   pausaDraft = !!currentEditingTeacher.pausado;
+  diasSeleccionados = [];
   document.getElementById('pausaMensaje').value = currentEditingTeacher.pausaMensaje || '';
-  populateDiaSelect();
+  renderDiasChips();
   renderPausaToggle();
-  renderHorariosList();
+  renderPatronList();
+  renderBloqueosList();
+  renderHorariosResumen();
   document.getElementById('horariosModal').classList.add('active');
 }
 window.closeHorariosModal = function(){ document.getElementById('horariosModal').classList.remove('active'); }
-
-function populateDiaSelect(){
-  const sel = document.getElementById('horario_dia');
-  if(sel.options.length) return; // ya está lleno, no repetir
-  DIAS_SEMANA.forEach(d=>{
-    const o = document.createElement('option');
-    o.value = d; o.textContent = d;
-    sel.appendChild(o);
-  });
-}
 
 function renderPausaToggle(){
   document.getElementById('pausaToggle').classList.toggle('on', pausaDraft);
@@ -1914,76 +1968,111 @@ function renderPausaToggle(){
 }
 window.togglePausa = function(){ pausaDraft = !pausaDraft; renderPausaToggle(); }
 
-function renderHorariosList(){
-  const wrap = document.getElementById('horariosList');
-  if(horariosDraft.length===0){
-    wrap.innerHTML = `<div class="empty-state" style="padding:20px;"><p>Todavía no agregaste bloques.</p></div>`;
+function renderDiasChips(){
+  document.getElementById('diasChips').innerHTML = DIAS_SEMANA.map(d=>
+    `<div class="dia-chip ${diasSeleccionados.includes(d)?'selected':''}" onclick="toggleDiaChip('${d}')">${DIAS_CORTO[d]}</div>`
+  ).join('');
+}
+window.toggleDiaChip = function(d){
+  const i = diasSeleccionados.indexOf(d);
+  if(i>-1) diasSeleccionados.splice(i,1); else diasSeleccionados.push(d);
+  renderDiasChips();
+}
+
+function renderPatronList(){
+  const wrap = document.getElementById('patronList');
+  if(horarioPatronDraft.length===0){
+    wrap.innerHTML = `<div class="empty-state" style="padding:16px;"><p>Todavía no armaste tu horario. Agrega uno abajo.</p></div>`;
     return;
   }
-  const porDia = {};
-  horariosDraft.forEach((b,i)=>{ (porDia[b.dia] = porDia[b.dia]||[]).push({...b, _i:i}); });
-  const diasOrdenados = DIAS_SEMANA.filter(d=>porDia[d]);
-
-  wrap.innerHTML = diasOrdenados.map(dia=>`
-    <div style="margin-bottom:10px;">
-      <div class="mono" style="color:var(--text-dim);font-size:11px;margin-bottom:6px;">${dia}</div>
-      ${porDia[dia].map(b=>`
-        <div class="horario-block ${b.estado==='ocupado'?'ocupado':''}">
-          <span>${b.inicio}–${b.fin} · ${b.estado==='ocupado'?'Ocupado':'Disponible'}</span>
-          <div class="horario-block-actions">
-            <button onclick="toggleEstadoBloque(${b._i})" title="Cambiar estado">${b.estado==='ocupado'?'↩':'✕'}</button>
-            <button onclick="eliminarBloque(${b._i})" title="Eliminar">🗑</button>
-          </div>
-        </div>
-      `).join('')}
+  wrap.innerHTML = horarioPatronDraft.map((p,i)=>`
+    <div class="patron-row">
+      <span>${p.dias.map(d=>DIAS_CORTO[d]).join(' · ')} · ${p.inicio}–${p.fin}</span>
+      <button onclick="eliminarPatron(${i})" title="Eliminar">🗑</button>
     </div>
   `).join('');
 }
 
-function horaAMinutos(t){ const [h,m] = t.split(':').map(Number); return h*60+m; }
-function minutosAHora(m){ const h = Math.floor(m/60); const mm = m%60; return String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0'); }
-
-window.agregarBloqueHorario = function(){
-  const dia = document.getElementById('horario_dia').value;
+window.agregarPatron = function(){
   const inicio = document.getElementById('horario_inicio').value;
   const fin = document.getElementById('horario_fin').value;
+  if(diasSeleccionados.length===0){ toast('Elige al menos un día', true); return; }
   if(!inicio || !fin){ toast('Completa la hora de inicio y fin', true); return; }
   if(inicio >= fin){ toast('La hora de fin debe ser después del inicio', true); return; }
 
-  // Dividimos el rango en franjas de 1 hora, para que si alguien reserva
-  // una hora dentro del rango, las demás sigan quedando disponibles.
-  let cursor = horaAMinutos(inicio);
-  const finMin = horaAMinutos(fin);
-  let agregados = 0;
-  while(cursor < finMin){
-    const siguiente = Math.min(cursor+60, finMin);
-    horariosDraft.push({ id: `${Date.now()}_${cursor}`, dia, inicio: minutosAHora(cursor), fin: minutosAHora(siguiente), estado: 'disponible' });
-    cursor = siguiente;
-    agregados++;
-  }
+  horarioPatronDraft.push({ id: `${Date.now()}`, dias: [...diasSeleccionados], inicio, fin });
+  horariosDraft = generarHorariosDesdePatron(horarioPatronDraft, horariosDraft);
+  diasSeleccionados = [];
   document.getElementById('horario_inicio').value = '';
   document.getElementById('horario_fin').value = '';
-  renderHorariosList();
-  toast(`Se agregaron ${agregados} franja(s) de 1 hora`);
+  renderDiasChips();
+  renderPatronList();
+  renderBloqueosList();
+  renderHorariosResumen();
+  toast('Horario agregado — ya se aplicó a las próximas 4 semanas');
+}
+window.eliminarPatron = function(i){
+  horarioPatronDraft.splice(i,1);
+  horariosDraft = generarHorariosDesdePatron(horarioPatronDraft, horariosDraft);
+  renderPatronList();
+  renderBloqueosList();
+  renderHorariosResumen();
 }
 
-window.toggleEstadoBloque = function(i){
-  horariosDraft[i].estado = horariosDraft[i].estado === 'ocupado' ? 'disponible' : 'ocupado';
-  renderHorariosList();
+function renderBloqueosList(){
+  const wrap = document.getElementById('bloqueosList');
+  const fechasBloqueadas = [...new Set(horariosDraft.filter(b=>b.estado==='bloqueado').map(b=>b.fecha))].sort();
+  if(fechasBloqueadas.length===0){ wrap.innerHTML = ''; return; }
+  wrap.innerHTML = fechasBloqueadas.map(f=>`
+    <div class="bloqueo-row">
+      <span>🚫 ${formatFechaLarga(f)}</span>
+      <button onclick="desbloquearFecha('${f}')">Quitar bloqueo</button>
+    </div>
+  `).join('');
 }
-window.eliminarBloque = function(i){
-  horariosDraft.splice(i,1);
-  renderHorariosList();
+
+window.bloquearFechaPuntual = function(){
+  const fecha = document.getElementById('bloqueo_fecha').value;
+  if(!fecha){ toast('Elige una fecha', true); return; }
+  if(fecha < hoyISO()){ toast('Elige una fecha a partir de hoy', true); return; }
+  let bloqueados = 0, saltados = 0;
+  horariosDraft = horariosDraft.map(b=>{
+    if(b.fecha !== fecha) return b;
+    if(b.estado === 'ocupado'){ saltados++; return b; } // ya tiene una clase pagada/reservada, no lo tocamos
+    bloqueados++;
+    return {...b, estado:'bloqueado'};
+  });
+  document.getElementById('bloqueo_fecha').value = '';
+  renderBloqueosList();
+  renderHorariosResumen();
+  if(bloqueados===0 && saltados>0){ toast('Ese día ya tiene una clase reservada, no se puede bloquear', true); return; }
+  toast(saltados>0 ? `Bloqueado, salvo ${saltados} hora(s) que ya tenías ocupada(s)` : 'Día bloqueado');
+}
+window.desbloquearFecha = function(fecha){
+  horariosDraft = horariosDraft.map(b => (b.fecha===fecha && b.estado==='bloqueado') ? {...b, estado:'disponible'} : b);
+  renderBloqueosList();
+  renderHorariosResumen();
+}
+
+function renderHorariosResumen(){
+  const ocupadas = horariosDraft.filter(b=>b.estado==='ocupado').length;
+  document.getElementById('horariosResumen').innerHTML = horarioPatronDraft.length
+    ? `<div class="horarios-resumen">Tienes <strong>${ocupadas}</strong> hora(s) ya reservada(s) en las próximas ${SEMANAS_ADELANTE} semanas. El resto se muestra disponible a los alumnos.</div>`
+    : '';
 }
 
 window.guardarHorarios = async function(){
   try{
     const pausaMensaje = document.getElementById('pausaMensaje').value.trim();
+    // Regeneramos una última vez antes de guardar, por si pasó tiempo desde que se abrió el modal.
+    horariosDraft = generarHorariosDesdePatron(horarioPatronDraft, horariosDraft);
     await updateDoc(doc(db,"profesores",currentUser.uid), {
+      horarioPatron: horarioPatronDraft,
       horarios: horariosDraft,
       pausado: pausaDraft,
       pausaMensaje
     });
+    currentEditingTeacher.horarioPatron = horarioPatronDraft;
     currentEditingTeacher.horarios = horariosDraft;
     currentEditingTeacher.pausado = pausaDraft;
     currentEditingTeacher.pausaMensaje = pausaMensaje;
