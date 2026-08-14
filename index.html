@@ -658,6 +658,14 @@ const CREDITOS_INICIALES = 20;
 const COSTO_PUBLICAR_SUPLENCIA = 10;
 const COMISION_PORCENTAJE = 0.10; // 10% para la app, 90% para el profesor
 
+/* Precio de la Microclase Express: fijo para toda la plataforma, pero se guarda en
+   Firestore (no en el código) para que el admin lo pueda cambiar desde el Panel de
+   Administrador sin necesitar que se edite el archivo. */
+let PRECIO_EXPRESS = 15;
+getDoc(doc(db,"config","precios")).then(snap=>{
+  if(snap.exists() && typeof snap.data().microclase === 'number') PRECIO_EXPRESS = snap.data().microclase;
+}).catch(e=>console.error('No se pudo cargar el precio de microclase:', e));
+
 /* Datos de pago manual - EDITA ESTO con tus datos reales */
 const PAGO_YAPE = "991 741 746";
 const PAGO_NOMBRE = "César Paullo Torres";
@@ -985,11 +993,13 @@ window.openSolicitudModal = function(teacherId){
       </div>`
     : `<div class="field"><label>¿Qué día y hora te conviene?</label><input type="text" id="sol_horario" placeholder="Ej. Sábados 4pm"></div>`;
 
+  const ofreceMicroclase = (solicitudTeacher.modalidades||[]).includes('microclase');
   const instanteHtml = esDisponibleAhora(solicitudTeacher) ? `
     <div class="instante-toggle-row" style="margin-bottom:16px;">
       <div style="font-weight:700;font-size:13.5px;color:var(--teal-bright);display:flex;align-items:center;gap:6px;"><span class="instante-badge"><span class="dot"></span>EN VIVO</span> Disponible ahora mismo</div>
       <div style="font-size:12px;color:var(--text-dim);margin:6px 0 10px;">Puede tomarte una clase en los próximos minutos. Se le avisa al instante.</div>
-      <button class="btn btn-teal btn-block" onclick="pedirClaseInstantanea()">⚡ Pedir clase ahora mismo</button>
+      <button class="btn btn-teal btn-block" onclick="pedirClaseInstantanea('completa')">⚡ Clase completa (1 hora) — S/ ${solicitudTeacher.rate}</button>
+      ${ofreceMicroclase ? `<button class="btn btn-ghost btn-block" style="margin-top:8px;" onclick="pedirClaseInstantanea('express')">⚡ Microclase Express (15-20 min) — S/ ${PRECIO_EXPRESS}</button>` : ''}
     </div>` : '';
 
   document.getElementById('reserva_body').innerHTML = `
@@ -1083,11 +1093,12 @@ window.submitSolicitud = async function(){
 /* Pedido de clase instantánea (Compás Al Instante) — se salta la elección de horario,
    se marca como confirmada de una vez (no requiere que el profesor "confirme disponibilidad",
    porque ya se anunció como disponible ahora mismo) y avisa urgente por ntfy. */
-window.pedirClaseInstantanea = async function(){
+window.pedirClaseInstantanea = async function(duracion){
   if(!esDisponibleAhora(solicitudTeacher)){ toast('Ese profesor ya no está disponible al instante', true); closeReservaModal(); return; }
   const mensaje = document.getElementById('sol_mensaje')?.value.trim() || '';
+  const esExpress = duracion === 'express';
   try{
-    const precioTotal = solicitudTeacher.rate;
+    const precioTotal = esExpress ? PRECIO_EXPRESS : solicitudTeacher.rate;
     const comision = Math.round(precioTotal * COMISION_PORCENTAJE * 100)/100;
     await addDoc(collection(db, "reservas"), {
       alumnoId: currentUser.uid,
@@ -1097,16 +1108,18 @@ window.pedirClaseInstantanea = async function(){
       profesorNombre: solicitudTeacher.name,
       profesorPhone: solicitudTeacher.phone || '',
       precio: precioTotal,
-      precioPorClase: solicitudTeacher.rate,
+      precioPorClase: precioTotal,
       comisionApp: comision,
       gananciaProfesor: precioTotal - comision,
-      horario: 'Ahora mismo (Compás Al Instante)',
+      horario: esExpress ? 'Microclase Express (15-20 min) — Ahora mismo' : 'Clase completa (1 hora) — Ahora mismo',
+      duracionMinutos: esExpress ? 20 : 60,
       mensaje,
       slotId: null,
       esPaquete: false,
       numeroClases: 1,
       clases: null,
       tipo: 'instantanea',
+      subtipo: esExpress ? 'express' : 'completa',
       estado: 'disponible', // ya está confirmada: el alumno puede pagar de una vez
       pagadoAProfesor: false,
       calificada: false,
@@ -1115,8 +1128,8 @@ window.pedirClaseInstantanea = async function(){
     if(solicitudTeacher.ntfyTopic){
       enviarNotificacion(
         solicitudTeacher.ntfyTopic,
-        '⚡ Pedido de clase AHORA MISMO',
-        `${currentUser.name} quiere una clase al instante contigo. Revisa "Mis reservas".`
+        esExpress ? '⚡ Pedido de MICROCLASE EXPRESS' : '⚡ Pedido de clase AHORA MISMO',
+        `${currentUser.name} quiere ${esExpress ? 'una microclase express (15-20 min)' : 'una clase completa (1 hora)'} al instante contigo. Revisa "Mis reservas".`
       );
     }
     closeReservaModal();
@@ -2507,6 +2520,17 @@ window.goAdmin = function(){
 }
 
 /* ============ ZONA DE LIMPIEZA (borrado de datos de prueba, solo admin) ============ */
+window.guardarPrecioExpress = async function(){
+  if(!currentUser?.esAdmin) return;
+  const valor = Number(document.getElementById('in_precioExpress').value);
+  if(!valor || valor <= 0){ toast('Ingresa un precio válido', true); return; }
+  try{
+    await setDoc(doc(db,"config","precios"), { microclase: valor }, { merge: true });
+    PRECIO_EXPRESS = valor;
+    toast(`Precio de microclase actualizado a S/ ${valor} ✓`);
+  }catch(e){ console.error(e); toast('No se pudo guardar', true); }
+}
+
 window.borrarTodasLasReservas = async function(){
   if(!currentUser?.esAdmin) return;
   if(!confirm('Esto borra TODAS las reservas — incluye sus chats, comprobantes de pago (capturas) y el registro de ingresos/comisiones. No se puede deshacer.\n\n¿Seguro que quieres continuar?')) return;
@@ -2603,6 +2627,16 @@ window.loadAdminStats = async function(){
         <div class="stat-card"><div class="stat-num">${totalAlumnos}</div><div class="stat-label">Alumnos</div></div>
         <div class="stat-card"><div class="stat-num">S/ ${comisionAcumulada.toFixed(0)}</div><div class="stat-label">Comisión ganada</div></div>
         <div class="stat-card"><div class="stat-num">${suplenciasAbiertas}</div><div class="stat-label">Suplencias abiertas</div></div>
+      </div>
+
+      <div class="admin-section-title mono">Configuración de precios</div>
+      <div class="sup-card">
+        <div style="font-weight:600;font-size:13.5px;margin-bottom:2px;">Precio de la Microclase Express</div>
+        <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:10px;">Se aplica igual para todos los profesores cuando ofrecen esta modalidad en Compás Al Instante.</div>
+        <div class="cta-row">
+          <div class="field" style="flex:1;margin-bottom:0;"><input type="number" id="in_precioExpress" value="${PRECIO_EXPRESS}"></div>
+          <button class="btn btn-teal btn-sm" onclick="guardarPrecioExpress()">Guardar</button>
+        </div>
       </div>
 
       <div class="admin-section-title mono">Profesores pendientes de aprobar (${pendientesAprobar.length})</div>
