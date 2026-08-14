@@ -193,6 +193,12 @@
   .instante-toggle-row{background:rgba(47,110,104,0.08);border:1px solid rgba(47,110,104,0.22);border-radius:10px;padding:12px 14px;margin-top:10px;}
   .video-link{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:700;color:var(--teal-bright);margin-top:9px;text-decoration:none;}
 
+  /* Zona de limpieza (borrado de datos de prueba) en el panel admin */
+  .danger-zone{background:rgba(193,84,63,0.06);border:1px solid rgba(193,84,63,0.25);border-radius:12px;padding:14px;margin-top:10px;}
+  .danger-zone .dz-title{font-weight:700;color:var(--danger);font-size:13.5px;margin-bottom:4px;}
+  .danger-zone .dz-hint{font-size:11.5px;color:var(--text-dim);line-height:1.5;margin-bottom:12px;}
+  .btn-danger{background:transparent;border:1.5px solid var(--danger);color:var(--danger);}
+
   .empty-state{text-align:center;padding:50px 20px;color:var(--text-dim);}
   .empty-state .icon{font-size:34px;margin-bottom:10px;opacity:0.6;}
   .empty-state p{font-size:13.5px;line-height:1.5;}
@@ -621,7 +627,7 @@
    ============================================================ */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getFirestore, collection, doc, addDoc, setDoc, getDoc, getDocs,
+  getFirestore, collection, doc, addDoc, setDoc, getDoc, getDocs, deleteDoc,
   onSnapshot, query, where, orderBy, updateDoc, increment, arrayUnion, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
@@ -990,7 +996,8 @@ window.openSolicitudModal = function(teacherId){
     <div class="preview-wrap" style="margin-bottom:18px;">
       <div class="preview-badge mono">Vas a solicitar horario con</div>
       <div class="tcard-name" style="font-size:17px;">${solicitudTeacher.name}</div>
-      <div class="tcard-meta" style="margin-top:4px;">${(solicitudTeacher.instruments||[]).join(' · ')} · S/ ${solicitudTeacher.rate}/h</div>
+      ${solicitudTeacher.especialidad ? `<div class="tcard-especialidad">${solicitudTeacher.especialidad}</div>` : ''}
+      <div class="tcard-meta" style="margin-top:4px;">${(solicitudTeacher.instruments||[]).filter(i=>i!==solicitudTeacher.especialidad).join(' · ')} · S/ ${solicitudTeacher.rate}/h</div>
     </div>
     ${instanteHtml}
     ${slotsHtml}
@@ -2499,6 +2506,46 @@ window.goAdmin = function(){
   loadAdminStats();
 }
 
+/* ============ ZONA DE LIMPIEZA (borrado de datos de prueba, solo admin) ============ */
+window.borrarTodasLasReservas = async function(){
+  if(!currentUser?.esAdmin) return;
+  if(!confirm('Esto borra TODAS las reservas — incluye sus chats, comprobantes de pago (capturas) y el registro de ingresos/comisiones. No se puede deshacer.\n\n¿Seguro que quieres continuar?')) return;
+  if(!confirm('Última confirmación: se van a borrar TODAS las reservas de la plataforma, incluidas reales si ya las hubiera. ¿Continuar de todas formas?')) return;
+  try{
+    toast('Borrando reservas y chats, un momento…');
+    const snap = await getDocs(collection(db,"reservas"));
+    for(const d of snap.docs){
+      const mensajesSnap = await getDocs(collection(db,"reservas",d.id,"mensajes"));
+      await Promise.all(mensajesSnap.docs.map(m=>deleteDoc(doc(db,"reservas",d.id,"mensajes",m.id))));
+      await deleteDoc(doc(db,"reservas",d.id));
+    }
+    toast(`Se borraron ${snap.docs.length} reserva(s) y sus chats ✓`);
+    loadAdminStats();
+  }catch(e){ console.error(e); toast('No se pudo completar el borrado', true); }
+}
+
+window.borrarTodasLasValoraciones = async function(){
+  if(!currentUser?.esAdmin) return;
+  if(!confirm('Esto borra TODAS las calificaciones que hayan dejado los alumnos. No se puede deshacer.\n\n¿Continuar?')) return;
+  try{
+    const snap = await getDocs(collection(db,"valoraciones"));
+    await Promise.all(snap.docs.map(d=>deleteDoc(doc(db,"valoraciones",d.id))));
+    toast(`Se borraron ${snap.docs.length} calificación(es) ✓`);
+    loadAdminStats();
+  }catch(e){ console.error(e); toast('No se pudo completar el borrado', true); }
+}
+
+window.borrarTodasLasSuplencias = async function(){
+  if(!currentUser?.esAdmin) return;
+  if(!confirm('Esto borra TODAS las suplencias publicadas (abiertas y cerradas). No se puede deshacer.\n\n¿Continuar?')) return;
+  try{
+    const snap = await getDocs(collection(db,"suplencias"));
+    await Promise.all(snap.docs.map(d=>deleteDoc(doc(db,"suplencias",d.id))));
+    toast(`Se borraron ${snap.docs.length} suplencia(s) ✓`);
+    loadAdminStats();
+  }catch(e){ console.error(e); toast('No se pudo completar el borrado', true); }
+}
+
 window.loadAdminStats = async function(){
   const wrap = document.getElementById('adminStats');
   wrap.innerHTML = `<div class="empty-state"><div class="icon">◐</div><p>Cargando estadísticas…</p></div>`;
@@ -2610,6 +2657,15 @@ window.loadAdminStats = async function(){
         recientes.map(t=>`<div class="admin-row"><span class="name">${t.name}</span><span class="meta">${t.zone}</span></div>`).join('')}
 
       <button class="btn btn-ghost btn-block" style="margin-top:20px;" onclick="loadAdminStats()">↻ Actualizar</button>
+
+      <div class="admin-section-title mono">Zona de limpieza</div>
+      <div class="danger-zone">
+        <div class="dz-title">⚠ Borrar datos de prueba</div>
+        <div class="dz-hint">Usa esto para vaciar lo que hayas probado tú mismo antes de invitar a profesores reales. No se puede deshacer, así que revisa bien antes de tocar cada botón.</div>
+        <button class="btn btn-danger btn-block" style="margin-bottom:8px;" onclick="borrarTodasLasReservas()">Borrar todas las reservas (incluye chats, comprobantes e ingresos)</button>
+        <button class="btn btn-danger btn-block" style="margin-bottom:8px;" onclick="borrarTodasLasValoraciones()">Borrar todas las calificaciones</button>
+        <button class="btn btn-danger btn-block" onclick="borrarTodasLasSuplencias()">Borrar todas las suplencias publicadas</button>
+      </div>
     `;
   }catch(e){
     console.error(e);
