@@ -179,6 +179,19 @@
   .bloqueo-row button{background:none;border:none;color:var(--teal-bright);font-size:12px;font-weight:600;}
   .horarios-resumen{font-size:12px;color:var(--text-dim);background:var(--ink-2);border-radius:10px;padding:10px 14px;margin-bottom:14px;}
 
+  /* Compás Al Instante */
+  .instante-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(47,110,104,0.16);color:var(--teal-bright);font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;vertical-align:middle;}
+  .instante-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--teal-bright);box-shadow:0 0 0 0 rgba(47,110,104,0.6);animation:pulse-dot 1.6s infinite;}
+  @keyframes pulse-dot{0%{box-shadow:0 0 0 0 rgba(47,110,104,0.5);}70%{box-shadow:0 0 0 6px rgba(47,110,104,0);}100%{box-shadow:0 0 0 0 rgba(47,110,104,0);}}
+  #instantSection{margin-bottom:16px;}
+  #instantSection .instant-scroll{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;}
+  #instantSection .instant-card{flex-shrink:0;width:150px;background:var(--ink-2);border:1.5px solid rgba(47,110,104,0.3);border-radius:12px;padding:12px;cursor:pointer;}
+  #instantSection .instant-card .in-avatar{width:44px;height:44px;border-radius:50%;background:var(--brass);color:var(--text-warm);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;background-size:cover;background-position:center;margin-bottom:8px;}
+  #instantSection .instant-card .in-name{font-size:12.5px;font-weight:700;color:var(--text-warm);}
+  #instantSection .instant-card .in-esp{font-size:11px;color:var(--brass-bright);margin-top:1px;}
+  #instantSection .section-title{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text-warm);margin-bottom:10px;}
+  .instante-toggle-row{background:rgba(47,110,104,0.08);border:1px solid rgba(47,110,104,0.22);border-radius:10px;padding:12px 14px;margin-top:10px;}
+
   .empty-state{text-align:center;padding:50px 20px;color:var(--text-dim);}
   .empty-state .icon{font-size:34px;margin-bottom:10px;opacity:0.6;}
   .empty-state p{font-size:13.5px;line-height:1.5;}
@@ -289,6 +302,7 @@
       <h2>Encuentra a tu profesor de música, cerca de ti.</h2>
       <p>Clases con egresados y estudiantes del conservatorio, filtradas por tu zona.</p>
     </div>
+    <div id="instantSection"></div>
     <div class="filterbar" id="filterbar"></div>
     <div class="card-list" id="teacherList">
       <div class="empty-state"><div class="icon">♪</div><p>Cargando profesores…</p></div>
@@ -669,6 +683,19 @@ function modalidadPillsHtml(t){
     .join('');
 }
 
+/* ===== Compás Al Instante: "estoy disponible ahora" tipo Uber ===== */
+const INSTANTE_HORAS_VIGENCIA = 2; // tiempo que dura activo antes de apagarse solo
+function esDisponibleAhora(t){
+  if(!t || t.disponibleAhora !== true || !t.disponibleAhoraDesde) return false;
+  const desde = t.disponibleAhoraDesde.toDate ? t.disponibleAhoraDesde.toDate() : new Date(t.disponibleAhoraDesde);
+  return Date.now() < (desde.getTime() + INSTANTE_HORAS_VIGENCIA*60*60*1000);
+}
+function minutosRestantesInstante(t){
+  const desde = t.disponibleAhoraDesde.toDate ? t.disponibleAhoraDesde.toDate() : new Date(t.disponibleAhoraDesde);
+  const restaMs = (desde.getTime() + INSTANTE_HORAS_VIGENCIA*60*60*1000) - Date.now();
+  return Math.max(0, Math.round(restaMs/60000));
+}
+
 let TEACHERS = [];
 let SUPLENCIAS = [];
 let activeFilter = "Todos";
@@ -808,7 +835,27 @@ function renderFilterbar(){
 
 function initials(name){ return (name||"?").split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase(); }
 
+function renderInstantSection(){
+  const wrap = document.getElementById('instantSection');
+  const disponibles = TEACHERS.filter(t=>
+    t.aprobado===true && t.perfilOculto!==true && t.pausado!==true && esDisponibleAhora(t)
+  );
+  if(disponibles.length===0){ wrap.innerHTML = ''; return; }
+  wrap.innerHTML = `
+    <div class="section-title"><span class="instante-badge"><span class="dot"></span>EN VIVO</span> Disponibles ahora mismo</div>
+    <div class="instant-scroll">
+      ${disponibles.map(t=>`
+        <div class="instant-card" onclick="openSolicitudModal('${t.id}')">
+          <div class="in-avatar" style="${t.photo?`background-image:url(${t.photo})`:''}">${t.photo?'':initials(t.name)}</div>
+          <div class="in-name">${t.name}</div>
+          <div class="in-esp">${t.especialidad || (t.instruments||[])[0] || ''}</div>
+        </div>
+      `).join('')}
+    </div>`;
+}
+
 function renderTeacherList(){
+  renderInstantSection();
   const list = document.getElementById('teacherList');
   const aprobados = TEACHERS.filter(t=>t.aprobado === true && t.perfilOculto !== true);
   const filtered = activeFilter==="Todos" ? aprobados : aprobados.filter(t=>
@@ -828,12 +875,13 @@ function renderTeacherList(){
       ? (t.zonasAdicionales||[]).find(z=>z.zona===activeFilter) : null;
     const zonaExtraHtml = zonaExtra
       ? `<span class="tag-pill" style="background:rgba(47,110,104,0.16);color:var(--teal-bright);">También disponible en ${zonaExtra.zona}${zonaExtra.costo ? ` (+S/${zonaExtra.costo})` : ''}</span>` : '';
+    const instanteHtml = esDisponibleAhora(t) ? ' <span class="instante-badge"><span class="dot"></span>Disponible ahora</span>' : '';
     return `
     <div class="teacher-card">
       <div class="avatar" style="${t.photo ? `background-image:url(${t.photo})`:''}">${t.photo?'':initials(t.name)}</div>
       <div class="tcard-body">
         <div class="tcard-top">
-          <div class="tcard-name">${t.name}${verificado ? ' <span class="verified-badge" title="Verificado: 3+ clases en Compás">✓</span>' : ''}${t.verificadoUNM===true ? ' <span class="unm-seal" title="Verificado UNM"><span class="seal-icon">🥇</span>UNM</span>' : ''}</div>
+          <div class="tcard-name">${t.name}${verificado ? ' <span class="verified-badge" title="Verificado: 3+ clases en Compás">✓</span>' : ''}${t.verificadoUNM===true ? ' <span class="unm-seal" title="Verificado UNM"><span class="seal-icon">🥇</span>UNM</span>' : ''}${instanteHtml}</div>
           <div class="tcard-rate">S/ ${t.rate}/h</div>
         </div>
         ${t.especialidad ? `<div class="tcard-especialidad">${t.especialidad}</div>` : ''}
@@ -929,12 +977,20 @@ window.openSolicitudModal = function(teacherId){
       </div>`
     : `<div class="field"><label>¿Qué día y hora te conviene?</label><input type="text" id="sol_horario" placeholder="Ej. Sábados 4pm"></div>`;
 
+  const instanteHtml = esDisponibleAhora(solicitudTeacher) ? `
+    <div class="instante-toggle-row" style="margin-bottom:16px;">
+      <div style="font-weight:700;font-size:13.5px;color:var(--teal-bright);display:flex;align-items:center;gap:6px;"><span class="instante-badge"><span class="dot"></span>EN VIVO</span> Disponible ahora mismo</div>
+      <div style="font-size:12px;color:var(--text-dim);margin:6px 0 10px;">Puede tomarte una clase en los próximos minutos. Se le avisa al instante.</div>
+      <button class="btn btn-teal btn-block" onclick="pedirClaseInstantanea()">⚡ Pedir clase ahora mismo</button>
+    </div>` : '';
+
   document.getElementById('reserva_body').innerHTML = `
     <div class="preview-wrap" style="margin-bottom:18px;">
       <div class="preview-badge mono">Vas a solicitar horario con</div>
       <div class="tcard-name" style="font-size:17px;">${solicitudTeacher.name}</div>
       <div class="tcard-meta" style="margin-top:4px;">${(solicitudTeacher.instruments||[]).join(' · ')} · S/ ${solicitudTeacher.rate}/h</div>
     </div>
+    ${instanteHtml}
     ${slotsHtml}
     <div class="field"><label>Mensaje (opcional)</label><textarea id="sol_mensaje" maxlength="140" placeholder="Ej. Soy principiante, busco clases de guitarra"></textarea></div>
   `;
@@ -1014,6 +1070,54 @@ window.submitSolicitud = async function(){
     toast('No se pudo enviar la solicitud, intenta de nuevo', true);
   }
 }
+
+/* Pedido de clase instantánea (Compás Al Instante) — se salta la elección de horario,
+   se marca como confirmada de una vez (no requiere que el profesor "confirme disponibilidad",
+   porque ya se anunció como disponible ahora mismo) y avisa urgente por ntfy. */
+window.pedirClaseInstantanea = async function(){
+  if(!esDisponibleAhora(solicitudTeacher)){ toast('Ese profesor ya no está disponible al instante', true); closeReservaModal(); return; }
+  const mensaje = document.getElementById('sol_mensaje')?.value.trim() || '';
+  try{
+    const precioTotal = solicitudTeacher.rate;
+    const comision = Math.round(precioTotal * COMISION_PORCENTAJE * 100)/100;
+    await addDoc(collection(db, "reservas"), {
+      alumnoId: currentUser.uid,
+      alumnoNombre: currentUser.name,
+      alumnoPhone: currentUser.phone || '',
+      profesorId: solicitudTeacher.id,
+      profesorNombre: solicitudTeacher.name,
+      profesorPhone: solicitudTeacher.phone || '',
+      precio: precioTotal,
+      precioPorClase: solicitudTeacher.rate,
+      comisionApp: comision,
+      gananciaProfesor: precioTotal - comision,
+      horario: 'Ahora mismo (Compás Al Instante)',
+      mensaje,
+      slotId: null,
+      esPaquete: false,
+      numeroClases: 1,
+      clases: null,
+      tipo: 'instantanea',
+      estado: 'disponible', // ya está confirmada: el alumno puede pagar de una vez
+      pagadoAProfesor: false,
+      calificada: false,
+      createdAt: serverTimestamp()
+    });
+    if(solicitudTeacher.ntfyTopic){
+      enviarNotificacion(
+        solicitudTeacher.ntfyTopic,
+        '⚡ Pedido de clase AHORA MISMO',
+        `${currentUser.name} quiere una clase al instante contigo. Revisa "Mis reservas".`
+      );
+    }
+    closeReservaModal();
+    toast('¡Enviado! Ya puedes pagar desde "Mis reservas" para coordinar de una vez.');
+  }catch(e){
+    console.error(e);
+    toast('No se pudo enviar el pedido, intenta de nuevo', true);
+  }
+}
+
 
 /* Profesor confirma o rechaza disponibilidad */
 window.confirmarDisponibilidad = async function(reservaId){
@@ -1341,7 +1445,9 @@ function renderMisReservas(lista, rol){
       estadoTxt = rol==='alumno' ? 'Esperando que confirme disponibilidad' : `Pidió: "${r.horario}"`;
       if(rol==='profesor') accion = `<div class="cta-row"><button class="btn btn-teal btn-sm" onclick="confirmarDisponibilidad('${r.id}')">Confirmar</button><button class="btn btn-ghost btn-sm" onclick="rechazarSolicitud('${r.id}')">No puedo</button></div>`;
     } else if(r.estado==='disponible'){
-      estadoTxt = rol==='alumno' ? 'Horario confirmado, falta tu pago' : 'Confirmaste, esperando pago';
+      estadoTxt = r.tipo==='instantanea'
+        ? (rol==='alumno' ? '⚡ Pedido al instante, falta tu pago' : '⚡ Te pidieron clase ahora mismo, falta que pague')
+        : (rol==='alumno' ? 'Horario confirmado, falta tu pago' : 'Confirmaste, esperando pago');
       if(rol==='alumno') accion = `<button class="btn btn-teal btn-sm" style="margin-top:8px;" onclick="openPagoModal('${r.id}', ${r.precio})">Pagar ahora</button>`;
     } else if(r.estado==='pendiente_pago'){
       estadoTxt = 'Verificando tu pago';
@@ -1413,6 +1519,25 @@ window.startWizard = function(existing){
 window.editMyProfile = function(){
   if(!currentEditingTeacher){ toast('Todavía no hay un perfil para editar', true); return; }
   startWizard(currentEditingTeacher);
+}
+
+window.toggleDisponibleAhora = async function(){
+  if(!currentEditingTeacher) return;
+  const activar = !esDisponibleAhora(currentEditingTeacher);
+  try{
+    await updateDoc(doc(db,"profesores",currentUser.uid), {
+      disponibleAhora: activar,
+      disponibleAhoraDesde: activar ? serverTimestamp() : null
+    });
+    currentEditingTeacher.disponibleAhora = activar;
+    currentEditingTeacher.disponibleAhoraDesde = activar ? new Date() : null; // valor local aproximado hasta que llegue el snapshot real
+    renderMyProfilePreview();
+    if(activar){
+      toast(`Activado — visible como "disponible ahora" por ${INSTANTE_HORAS_VIGENCIA} horas`);
+    } else {
+      toast('Desactivado');
+    }
+  }catch(e){ console.error(e); toast('No se pudo actualizar', true); }
 }
 
 function renderProgress(){
@@ -1765,6 +1890,16 @@ function renderMyProfilePreview(){
       </div>
     </div>
     <button class="btn btn-ghost btn-block" style="margin-top:12px;" onclick="editMyProfile()">Editar mi perfil</button>
+    ${(t.modalidades||[]).includes('instantaneo') ? `
+    <div class="instante-toggle-row">
+      <div class="toggle-row" style="background:transparent;margin-bottom:0;padding:0;">
+        <div>
+          <div style="font-weight:600;font-size:13.5px;">⚡ Compás Al Instante</div>
+          <div style="font-size:11.5px;color:var(--text-dim);margin-top:2px;">${esDisponibleAhora(t) ? `Activo — se apaga solo en ${minutosRestantesInstante(t)} min` : `Actívalo cuando te quede un hueco libre ahora`}</div>
+        </div>
+        <div class="toggle-switch ${esDisponibleAhora(t)?'on':''}" style="${esDisponibleAhora(t)?'background:var(--teal);':''}" onclick="toggleDisponibleAhora()"><div class="knob"></div></div>
+      </div>
+    </div>` : ''}
     <button class="btn btn-teal btn-block" style="margin-top:10px;" onclick="openHorariosModal()">Mis horarios</button>
     <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="openZonasModal()">Zonas adicionales</button>
     <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="openVerificacionModal()">${t.verificadoUNM===true ? 'Verificación UNM ✓' : (t.verificacionUNMPendiente===true ? 'Verificación en revisión…' : 'Verificarme con la UNM')}</button>
@@ -2639,6 +2774,13 @@ populateZoneSelect(document.getElementById('s_zone'));
 populateZoneSelect(document.getElementById('sup_zone'));
 populateInstrumentSelect(document.getElementById('sup_instrument'));
 renderNavLock();
+
+// Refresca "Disponibles ahora" cada minuto: no depende de que llegue un cambio
+// nuevo de Firestore, así el aviso desaparece solo apenas se cumplen las 2 horas.
+setInterval(()=>{
+  const explorarActiva = document.getElementById('view-explorar')?.classList.contains('active');
+  if(explorarActiva) renderTeacherList();
+}, 60000);
 
 /* ============ PWA: registrar service worker ============ */
 if ('serviceWorker' in navigator) {
