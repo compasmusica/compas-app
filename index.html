@@ -191,6 +191,7 @@
   #instantSection .instant-card .in-esp{font-size:11px;color:var(--brass-bright);margin-top:1px;}
   #instantSection .section-title{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text-warm);margin-bottom:10px;}
   .instante-toggle-row{background:rgba(47,110,104,0.08);border:1px solid rgba(47,110,104,0.22);border-radius:10px;padding:12px 14px;margin-top:10px;}
+  .video-link{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:700;color:var(--teal-bright);margin-top:9px;text-decoration:none;}
 
   .empty-state{text-align:center;padding:50px 20px;color:var(--text-dim);}
   .empty-state .icon{font-size:34px;margin-bottom:10px;opacity:0.6;}
@@ -891,6 +892,7 @@ function renderTeacherList(){
           ${t.formacion ? `<span class="cred-item">🎓 ${t.formacion}</span>` : ''}
         </div>` : ''}
         ${t.bio ? `<div class="tcard-bio">${t.bio}</div>` : ''}
+        ${t.videoUrl ? `<a href="${t.videoUrl}" target="_blank" rel="noopener" class="video-link" onclick="event.stopPropagation()">▶ Ver video</a>` : ''}
         <div class="tcard-tags">
           <span class="tag-pill zone">${t.zone}</span>
           ${modalidadPillsHtml(t)}
@@ -1655,6 +1657,7 @@ function renderStep(){
           </div>
         </div>
         ${draft.bio ? `<p style="font-size:13px;color:var(--text-dim);margin-top:14px;line-height:1.5;">${draft.bio}</p>`:''}
+        ${draft.videoUrl ? `<a href="${draft.videoUrl}" target="_blank" rel="noopener" class="video-link" style="margin-top:2px;">▶ Ver video</a>`:''}
       </div>
       <button class="btn btn-primary btn-block btn-lg" onclick="publishProfile()">Publicar mi perfil</button></div>`;
   }
@@ -1886,6 +1889,7 @@ function renderMyProfilePreview(){
           ${t.formacion ? `<span class="cred-item">🎓 ${t.formacion}</span>` : ''}
         </div>` : ''}
         ${t.bio ? `<div class="tcard-bio">${t.bio}</div>` : ''}
+        ${t.videoUrl ? `<a href="${t.videoUrl}" target="_blank" rel="noopener" class="video-link">▶ Ver video</a>` : ''}
         <div class="tcard-tags"><span class="tag-pill zone">${t.zone}</span>${modalidadPillsHtml(t)}</div>
       </div>
     </div>
