@@ -471,11 +471,12 @@
       <button class="btn btn-teal btn-block" onclick="closeAccountModal(); switchView('misreservas'); loadMyReservas();">Mis reservas</button>
       <div id="acc_ntfy_banner" class="ntfy-info" style="margin-top:14px;display:none;">
         <div class="ntfy-title">🔔 Recibe avisos al instante</div>
-        <div class="ntfy-step">Actívalo para que te avise apenas te llegue un mensaje nuevo al chat, o novedades de tus reservas.<br><b>Paso 1:</b> Descarga la app <b>ntfy</b> (gratis).<br><b>Paso 2:</b> Toca "Activar notificaciones" abajo.</div>
+        <div class="ntfy-step">Actívalo para que te avise apenas te llegue un mensaje nuevo al chat, o novedades de tus reservas.<br><b>Paso 1:</b> Descarga la app <b>ntfy</b> (gratis):</div>
         <div class="ntfy-links">
           <a class="btn btn-ghost btn-sm" href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener">Android</a>
           <a class="btn btn-ghost btn-sm" href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank" rel="noopener">iPhone</a>
         </div>
+        <div class="ntfy-step" style="margin-top:8px;"><b>Paso 2:</b> Toca "Activar notificaciones" abajo.</div>
         <button class="btn btn-teal btn-block" style="margin-top:10px;" onclick="activarNotificacionesPersonales()">🔔 Activar notificaciones</button>
       </div>
       <button id="acc_admin_btn" class="btn btn-ghost btn-block" style="margin-top:10px;display:none;" onclick="goAdmin()">Panel de administrador</button>
@@ -695,7 +696,18 @@ const SOPORTE_WHATSAPP = "991 741 746"; // mismo número por ahora, edítalo si 
 const NTFY_TOPIC = "compas-aacfe-reservas-x7f2q";
 
 /* ============ DATOS BASE (catálogos, no van a Firestore) ============ */
-const ZONES = ["Bellavista","La Perla","La Punta","Carmen de la Legua Reynoso","Cercado del Callao","Ventanilla","Mi Perú","Cercado de Lima","San Miguel","Pueblo Libre","Jesús María","Magdalena","Breña","La Victoria","Surquillo","Miraflores","San Isidro","Barranco","Surco","San Borja","La Molina","Los Olivos","San Martín de Porres","Comas","Independencia","Ate","San Juan de Lurigancho","Villa El Salvador"];
+const ZONES = [
+  // Callao (7)
+  "Bellavista","La Perla","La Punta","Carmen de la Legua Reynoso","Cercado del Callao","Ventanilla","Mi Perú",
+  // Lima Metropolitana (43)
+  "Ancón","Ate","Barranco","Breña","Carabayllo","Chaclacayo","Chorrillos","Cieneguilla","Comas",
+  "El Agustino","Independencia","Jesús María","La Molina","La Victoria","Lince","Los Olivos",
+  "Lurigancho (Chosica)","Lurín","Magdalena del Mar","Miraflores","Pachacámac","Pucusana",
+  "Pueblo Libre","Puente Piedra","Punta Hermosa","Punta Negra","Rímac","San Bartolo","San Borja",
+  "San Isidro","San Juan de Lurigancho","San Juan de Miraflores","San Luis","San Martín de Porres",
+  "San Miguel","Santa Anita","Santa María del Mar","Santa Rosa","Santiago de Surco","Surquillo",
+  "Villa El Salvador","Villa María del Triunfo","Cercado de Lima"
+];
 const INSTRUMENTS = ["Piano","Guitarra","Guitarra Eléctrica","Canto","Violín","Viola","Violonchelo","Contrabajo","Batería","Bajo","Cajón","Percusión","Saxofón","Trompeta","Trombón","Eufonio","Tuba","Corno Francés","Flauta Traversa","Flauta Dulce","Clarinete","Oboe","Fagot","Charango","Cuatro","Ukelele","Arpa","Acordeón","Bandoneón","Órgano","Producción Musical","Solfeo / Teoría"];
 const MODALIDADES = [
   {id:"domicilio", label:"Presencial a Domicilio"},
@@ -2120,11 +2132,12 @@ function renderMyProfilePreview(){
     <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="openVerificacionModal()">${t.verificadoUNM===true ? 'Verificación UNM ✓' : (t.verificacionUNMPendiente===true ? 'Verificación en revisión…' : 'Verificarme con la UNM')}</button>
     <div class="ntfy-info" style="margin-top:16px;">
       <div class="ntfy-title">🔔 Recibe avisos al instante</div>
-      <div class="ntfy-step"><b>Paso 1:</b> Descarga la app <b>ntfy</b> (gratis) desde Play Store o App Store.<br><b>Paso 2:</b> Toca "Activar Notificaciones" abajo — vincula tu canal en 1 solo toque.</div>
+      <div class="ntfy-step"><b>Paso 1:</b> Descarga la app <b>ntfy</b> (gratis):</div>
       <div class="ntfy-links">
         <a class="btn btn-ghost btn-sm" href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener">Android</a>
         <a class="btn btn-ghost btn-sm" href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank" rel="noopener">iPhone</a>
       </div>
+      <div class="ntfy-step" style="margin-top:8px;"><b>Paso 2:</b> Toca "Activar Notificaciones" abajo — vincula tu canal en 1 solo toque.</div>
     </div>
     <button class="btn btn-teal btn-block" style="margin-top:0;" onclick="activarNotificacionesProfesor()">🔔 Activar Notificaciones</button>
     <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="togglePerfilOculto()">${t.perfilOculto===true ? 'Reactivar mi perfil' : 'Pausar mi perfil'}</button>
