@@ -127,6 +127,7 @@
   .cred-item{font-size:11.5px;color:var(--text-dim);display:flex;align-items:center;gap:5px;}
   .tcard-bio{font-size:12.5px;color:var(--text-warm);opacity:0.85;margin-top:7px;line-height:1.5;}
   .tag-pill.modo{background:rgba(47,93,138,0.12);color:var(--teal-bright);border:1px solid rgba(47,93,138,0.22);}
+  .tag-pill.modo.selected-modo{background:var(--teal);color:var(--text-warm);border-color:var(--teal);}
 
   /* Especialidad principal: se muestra primero, destacada, arriba de "también toca" */
   .tcard-especialidad{font-size:12.5px;font-weight:700;color:var(--brass-bright);letter-spacing:0.2px;margin-top:2px;text-transform:uppercase;}
@@ -468,6 +469,15 @@
       <h3 id="acc_name">—</h3>
       <div class="hint" id="acc_role">—</div>
       <button class="btn btn-teal btn-block" onclick="closeAccountModal(); switchView('misreservas'); loadMyReservas();">Mis reservas</button>
+      <div id="acc_ntfy_banner" class="ntfy-info" style="margin-top:14px;display:none;">
+        <div class="ntfy-title">🔔 Recibe avisos al instante</div>
+        <div class="ntfy-step">Actívalo para que te avise apenas te llegue un mensaje nuevo al chat, o novedades de tus reservas.<br><b>Paso 1:</b> Descarga la app <b>ntfy</b> (gratis).<br><b>Paso 2:</b> Toca "Activar notificaciones" abajo.</div>
+        <div class="ntfy-links">
+          <a class="btn btn-ghost btn-sm" href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener">Android</a>
+          <a class="btn btn-ghost btn-sm" href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank" rel="noopener">iPhone</a>
+        </div>
+        <button class="btn btn-teal btn-block" style="margin-top:10px;" onclick="activarNotificacionesPersonales()">🔔 Activar notificaciones</button>
+      </div>
       <button id="acc_admin_btn" class="btn btn-ghost btn-block" style="margin-top:10px;display:none;" onclick="goAdmin()">Panel de administrador</button>
       <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeAccountModal(); openFaqModal();">Preguntas frecuentes</button>
       <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeAccountModal(); openSoporteModal();">Soporte / Ayuda</button>
@@ -723,19 +733,38 @@ let authTab = 'login';
    el suyo propio (guardado en su perfil), y tú tienes el tuyo fijo. */
 function enviarNotificacion(topic, titulo, mensaje){
   if(!topic) return;
+  // Los navegadores no permiten caracteres fuera de ISO-8859-1 (como emojis) en
+  // encabezados HTTP — si el título trae uno, la notificación falla en silencio.
+  // Lo limpiamos acá para que este error nunca vuelva a pasar sin que nos demos cuenta.
+  const tituloSeguro = titulo.replace(/[^\x00-\xFF]/g, '').trim() || 'Compás';
   try{
     fetch(`https://ntfy.sh/${topic}`, {
       method: 'POST',
       body: mensaje,
-      headers: { 'Title': titulo, 'Priority': 'high', 'Tags': 'musical_note' }
+      headers: { 'Title': tituloSeguro, 'Priority': 'high', 'Tags': 'musical_note' }
     }).then(res=>{
       if(!res.ok) console.error('ntfy respondió con error:', res.status);
     }).catch(err=>console.error('ntfy no se pudo enviar:', err));
   }catch(err){
-    console.error('ntfy: error al construir la notificación (probablemente el título tiene un carácter no permitido):', err);
+    console.error('ntfy: error al construir la notificación:', err);
   }
 }
 function notificarCesar(titulo, mensaje){ enviarNotificacion(NTFY_TOPIC, titulo, mensaje); }
+
+/* Canal de notificaciones PERSONAL de cada usuario (alumno o profesor), separado
+   de "usuarios" a propósito: usuarios/{uid} tiene datos sensibles (correo, teléfono)
+   y solo el dueño lo puede leer, pero para avisarle a alguien de un mensaje de chat
+   nuevo, quien envía necesita poder leer el topic del OTRO — por eso vive en su
+   propia colección pública ("notif"), con un solo campo adentro. */
+async function asegurarCanalNotifPersonal(uid){
+  try{
+    const snap = await getDoc(doc(db,"notif",uid));
+    if(snap.exists() && snap.data().ntfyTopic) return snap.data().ntfyTopic;
+    const topic = generarTopicNtfy();
+    await setDoc(doc(db,"notif",uid), { ntfyTopic: topic });
+    return topic;
+  }catch(e){ console.error('No se pudo asegurar el canal de notificaciones personal:', e); return null; }
+}
 
 /* Genera un nombre de canal único para un profesor nuevo. Nadie más lo
    conoce; no está ligado a su nombre real ni a su número. */
@@ -946,6 +975,7 @@ let calificacionReserva = null;
 let estrellasSeleccionadas = 0;
 
 let slotSeleccionado = null;
+let modalidadElegida = null;
 
 window.openSolicitudModal = function(teacherId){
   if(!currentUser){ toast('Si quieres reservar una clase, primero regístrate como alumno', true); openAuthModal('register'); return; }
@@ -954,6 +984,7 @@ window.openSolicitudModal = function(teacherId){
   if(!solicitudTeacher) return;
   pagoReservaId = null;
   slotSeleccionado = null;
+  modalidadElegida = null;
   document.getElementById('reservaModalTitle').textContent = 'Solicitar horario';
   document.getElementById('reservaModalBtn').textContent = 'Enviar solicitud';
 
@@ -965,6 +996,22 @@ window.openSolicitudModal = function(teacherId){
     return;
   }
   document.getElementById('reservaModalBtn').style.display = 'block';
+
+  // Modalidades que ofrece este profesor, para clases programadas normales (no instantáneas,
+  // que tienen su propio selector de completa/express más abajo). Si solo ofrece una, se
+  // asigna sola y no le preguntamos nada al alumno.
+  const modalidadesProgramables = (solicitudTeacher.modalidades||[]).filter(id=>id!=='instantaneo' && id!=='microclase');
+  if(modalidadesProgramables.length===1) modalidadElegida = modalidadesProgramables[0];
+  const modalidadHtml = modalidadesProgramables.length > 1
+    ? `<div class="field"><label>¿Cómo quieres tu clase?</label>
+        <div class="dias-chips" style="flex-wrap:wrap;">
+          ${modalidadesProgramables.map(id=>{
+            const m = MODALIDADES.find(x=>x.id===id);
+            return `<span class="tag-pill modo" id="modo_${id}" style="cursor:pointer;" onclick="elegirModalidad('${id}')">${m?m.label:id}</span>`;
+          }).join('')}
+        </div>
+      </div>`
+    : '';
 
   // Filtro defensivo por fecha: aunque el profesor no haya abierto "Mis horarios"
   // recientemente para regenerar, un bloque con fecha vencida nunca se muestra al alumno.
@@ -1010,12 +1057,18 @@ window.openSolicitudModal = function(teacherId){
       <div class="tcard-meta" style="margin-top:4px;">${(solicitudTeacher.instruments||[]).filter(i=>i!==solicitudTeacher.especialidad).join(' · ')} · S/ ${solicitudTeacher.rate}/h</div>
     </div>
     ${instanteHtml}
+    ${modalidadHtml}
     ${slotsHtml}
     <div class="field"><label>Mensaje (opcional)</label><textarea id="sol_mensaje" maxlength="140" placeholder="Ej. Soy principiante, busco clases de guitarra"></textarea></div>
   `;
   document.getElementById('reservaModal').classList.add('active');
 }
 window.closeReservaModal = function(){ document.getElementById('reservaModal').classList.remove('active'); }
+window.elegirModalidad = function(id){
+  modalidadElegida = id;
+  document.querySelectorAll('[id^="modo_"]').forEach(el=>el.classList.remove('selected-modo'));
+  document.getElementById(`modo_${id}`).classList.add('selected-modo');
+}
 
 window.seleccionarSlot = function(slotId, texto, fecha){
   slotSeleccionado = { id: slotId, texto, fecha };
@@ -1028,6 +1081,9 @@ window.seleccionarSlot = function(slotId, texto, fecha){
    simplemente suman 7 días exactos a partir de esa fecha real. Ver sumarDiasISO(). */
 
 window.submitSolicitud = async function(){
+  const modalidadesProgramables = (solicitudTeacher.modalidades||[]).filter(id=>id!=='instantaneo' && id!=='microclase');
+  if(modalidadesProgramables.length > 1 && !modalidadElegida){ toast('Elige cómo quieres tu clase (modalidad)', true); return; }
+
   const disponibles = (solicitudTeacher.horarios || []).filter(b=>b.estado==='disponible' && b.fecha && b.fecha>=hoyISO());
   let horario, numClases = 1;
   if(disponibles.length){
@@ -1064,6 +1120,7 @@ window.submitSolicitud = async function(){
       comisionApp: comision,
       gananciaProfesor: precioTotal - comision,
       horario, mensaje,
+      modalidad: modalidadElegida || modalidadesProgramables[0] || null,
       slotId: slotSeleccionado ? slotSeleccionado.id : null,
       esPaquete: numClases > 1,
       numeroClases: numClases,
@@ -1128,7 +1185,7 @@ window.pedirClaseInstantanea = async function(duracion){
     if(solicitudTeacher.ntfyTopic){
       enviarNotificacion(
         solicitudTeacher.ntfyTopic,
-        esExpress ? '⚡ Pedido de MICROCLASE EXPRESS' : '⚡ Pedido de clase AHORA MISMO',
+        esExpress ? 'Pedido de Microclase Express' : 'Pedido de clase AHORA MISMO',
         `${currentUser.name} quiere ${esExpress ? 'una microclase express (15-20 min)' : 'una clase completa (1 hora)'} al instante contigo. Revisa "Mis reservas".`
       );
     }
@@ -1422,6 +1479,14 @@ window.sendChatMessage = async function(){
       profesorId: chatProfesorId,
       createdAt: serverTimestamp()
     });
+    // Avisamos al otro lado del chat (no a quien envía) — sin bloquear el envío
+    // del mensaje si esto falla, por eso no lleva await ni corta el flujo.
+    const destinatarioId = currentUser.uid === chatAlumnoId ? chatProfesorId : chatAlumnoId;
+    getDoc(doc(db,"notif",destinatarioId)).then(snap=>{
+      if(snap.exists() && snap.data().ntfyTopic){
+        enviarNotificacion(snap.data().ntfyTopic, 'Nuevo mensaje en Compás', `${currentUser.name}: ${texto}`);
+      }
+    }).catch(e=>console.error('No se pudo notificar el mensaje:', e));
   }catch(e){
     console.error(e);
     if(e.code === 'permission-denied'){
@@ -1495,8 +1560,10 @@ function renderMisReservas(lista, rol){
     const chatBtn = r.estado!=='rechazada'
       ? `<button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="openChat('${r.id}','${otro.replace(/'/g,"")}')">💬 Chat</button>`
       : '';
+    const modalidadTxt = r.modalidad ? MODALIDADES.find(m=>m.id===r.modalidad)?.label : null;
     return `<div class="sup-card">
       <div class="sup-top"><span class="sup-title">${otro}</span><span class="sup-monto">S/ ${r.precio}</span></div>
+      <div class="sup-meta">${r.horario}${modalidadTxt ? ` · ${modalidadTxt}` : ''}</div>
       <div class="sup-meta">${estadoTxt}</div>
       <div class="cta-row" style="margin-top:2px;">${accion}${chatBtn}</div>
     </div>`;
@@ -1817,6 +1884,7 @@ window.publishProfile = async function(){
           zone: draft.zone,
           creditos: CREDITOS_INICIALES
         }, { merge: true });
+        await asegurarCanalNotifPersonal(uid);
       }catch(e){
         // Si ya eras alumno, la regla de seguridad bloquea el cambio de rol por ahora.
       }
@@ -1833,6 +1901,7 @@ window.publishProfile = async function(){
         phone: draft.phone,
         createdAt: serverTimestamp()
       });
+      await asegurarCanalNotifPersonal(uid);
     }
 
     const esEdicion = !!(currentEditingTeacher && currentEditingTeacher.id === uid);
@@ -2389,6 +2458,7 @@ window.finalizarRegistroAlumnoGoogle = async function(){
       photoURL: pendingGoogleUser.photo,
       createdAt: serverTimestamp()
     });
+    await asegurarCanalNotifPersonal(pendingGoogleUser.uid);
     document.getElementById('googleRoleModal').classList.remove('active');
     // Dejamos el modal listo para la próxima vez que alguien más entre por Google
     document.getElementById('googleRoleChoice').style.display = 'block';
@@ -2415,6 +2485,7 @@ window.saveStudent = async function(){
     await setDoc(doc(db, "usuarios", cred.user.uid), {
       name, email, role: "alumno", creditos: CREDITOS_INICIALES, phone, zone, createdAt: serverTimestamp()
     });
+    await asegurarCanalNotifPersonal(cred.user.uid);
     closeAuthModal();
     toast('¡Cuenta creada! Ya puedes contactar profesores.');
   }catch(e){
@@ -2431,12 +2502,25 @@ window.openAccountOrAuth = function(){
 }
 window.openRoleChoice = function(){ document.getElementById('roleChoiceModal').classList.add('active'); }
 window.closeRoleChoice = function(){ document.getElementById('roleChoiceModal').classList.remove('active'); }
-function openAccountModal(){
+async function openAccountModal(){
   document.getElementById('acc_name').textContent = currentUser.name || currentUser.email;
   document.getElementById('acc_role').textContent = currentUser.role === 'profesor' ? 'Profesor del gremio' : 'Alumno';
   const adminBtn = document.getElementById('acc_admin_btn');
   if(adminBtn) adminBtn.style.display = currentUser.esAdmin ? 'block' : 'none';
+
+  // Autogenera el canal de notificaciones personales si esta cuenta no lo tenía
+  // todavía (cuentas creadas antes de este cambio) — así nadie se queda sin poder
+  // activarlo por haberse registrado antes.
+  if(!currentUser.ntfyTopic){
+    currentUser.ntfyTopic = await asegurarCanalNotifPersonal(currentUser.uid);
+  }
+  document.getElementById('acc_ntfy_banner').style.display = currentUser.ntfyTopic ? 'block' : 'none';
+
   document.getElementById('accountModal').classList.add('active');
+}
+window.activarNotificacionesPersonales = function(){
+  if(!currentUser?.ntfyTopic){ toast('Todavía no tienes un canal de notificaciones', true); return; }
+  window.open(`https://ntfy.sh/${currentUser.ntfyTopic}`, '_blank');
 }
 window.closeAccountModal = function(){ document.getElementById('accountModal').classList.remove('active'); }
 
@@ -2799,6 +2883,10 @@ function generarTicketPDF(r, prof){
     : (prof.modalidad || '-');
   campo('Modalidad', modalidadesTexto);
   campo('Horario', r.horario);
+  if(r.modalidad){
+    const modalidadTxt = MODALIDADES.find(m=>m.id===r.modalidad)?.label || r.modalidad;
+    campo('Modalidad de esta clase', modalidadTxt);
+  }
   campo('Monto total', `S/ ${r.precio}`);
   campo('Estado', 'Pago confirmado');
 
