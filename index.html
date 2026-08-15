@@ -785,6 +785,16 @@ async function asegurarCanalNotifPersonal(uid){
     return topic;
   }catch(e){ console.error('No se pudo asegurar el canal de notificaciones personal:', e); return null; }
 }
+/* Igual que la de arriba, pero de SOLO LECTURA — para cuando quien llama (ej. un
+   profesor confirmando una solicitud) necesita el canal de OTRA persona (el alumno),
+   sin tener permiso para crearle uno si todavía no lo tiene (eso solo lo puede
+   hacer el dueño de la cuenta, la primera vez que abre "Cuenta"). */
+async function obtenerCanalNotifDe(uid){
+  try{
+    const snap = await getDoc(doc(db,"notif",uid));
+    return (snap.exists() && snap.data().ntfyTopic) ? snap.data().ntfyTopic : null;
+  }catch(e){ console.error('No se pudo leer el canal de notificaciones:', e); return null; }
+}
 
 /* Genera un nombre de canal único para un profesor nuevo. Nadie más lo
    conoce; no está ligado a su nombre real ni a su número. */
@@ -1332,6 +1342,13 @@ window.confirmarDisponibilidad = async function(reservaId){
       );
       await updateDoc(doc(db,"profesores",r.profesorId), { horarios });
     }
+    // El alumno estaba esperando esto — sin avisarle, no tiene forma de saber
+    // que ya puede pagar salvo que entre a revisar por curiosidad.
+    if(r){
+      obtenerCanalNotifDe(r.alumnoId).then(topic=>{
+        if(topic) enviarNotificacion(topic, 'Ya puedes pagar tu clase', `${r.profesorNombre} confirmó: "${r.horario}". Entra a "Mis reservas" para pagar.`);
+      });
+    }
     toast('Disponibilidad confirmada. El alumno ya puede pagar.');
     loadMyReservas();
   }catch(e){ console.error(e); toast('No se pudo confirmar', true); }
@@ -1340,7 +1357,14 @@ window.rechazarSolicitud = async function(reservaId){
   const ok = confirm('¿Confirmas que ese horario no te funciona?');
   if(!ok) return;
   try{
+    const reservaSnap = await getDoc(doc(db,"reservas",reservaId));
+    const r = reservaSnap.data();
     await updateDoc(doc(db,"reservas",reservaId), { estado: 'rechazada' });
+    if(r){
+      obtenerCanalNotifDe(r.alumnoId).then(topic=>{
+        if(topic) enviarNotificacion(topic, 'Ese horario no funcionó', `${r.profesorNombre} no puede en "${r.horario}". Prueba con otro horario o profesor.`);
+      });
+    }
     toast('Solicitud rechazada');
     loadMyReservas();
   }catch(e){ console.error(e); toast('No se pudo rechazar', true); }
@@ -2727,6 +2751,13 @@ window.postularSuplencia = async function(supId){
   if(!currentUser || currentUser.role !== 'profesor'){ toast('Solo profesores pueden postularse', true); return; }
   try{
     await updateDoc(doc(db, "suplencias", supId), { postulantes: arrayUnion(currentUser.uid) });
+    const sup = SUPLENCIAS.find(s=>s.id===supId);
+    if(sup && sup.teacherId){
+      getDoc(doc(db,"profesores",sup.teacherId)).then(snap=>{
+        const topic = snap.exists() ? snap.data().ntfyTopic : null;
+        if(topic) enviarNotificacion(topic, 'Alguien se postuló a tu suplencia', `${currentUser.name} se postuló para "${sup.instrument} · ${sup.zone}". Revisa Suplencias para contactarlo.`);
+      });
+    }
     toast('Te postulaste. El colega verá tu perfil para contactarte.');
   }catch(e){ console.error(e); toast('No se pudo postular', true); }
 }
@@ -2935,6 +2966,10 @@ window.loadAdminStats = async function(){
 window.aprobarProfesor = async function(profesorId){
   try{
     await updateDoc(doc(db,"profesores",profesorId), { aprobado: true });
+    getDoc(doc(db,"profesores",profesorId)).then(snap=>{
+      const topic = snap.exists() ? snap.data().ntfyTopic : null;
+      if(topic) enviarNotificacion(topic, 'Tu perfil ya está aprobado', 'Ya apareces en Explorar y los alumnos pueden solicitarte horario.');
+    });
     toast('Profesor aprobado ✓ Ya aparece en Explorar');
     loadAdminStats();
   }catch(e){ console.error(e); toast('No se pudo aprobar', true); }
@@ -2944,6 +2979,10 @@ window.rechazarProfesor = async function(profesorId){
   if(!ok) return;
   try{
     await updateDoc(doc(db,"profesores",profesorId), { aprobado: false, rechazado: true });
+    getDoc(doc(db,"profesores",profesorId)).then(snap=>{
+      const topic = snap.exists() ? snap.data().ntfyTopic : null;
+      if(topic) enviarNotificacion(topic, 'Tu perfil necesita ajustes', 'Tu perfil todavía no fue aprobado para publicarse en Explorar. Escríbenos por soporte para más detalles.');
+    });
     toast('Perfil marcado como rechazado');
     loadAdminStats();
   }catch(e){ console.error(e); toast('No se pudo rechazar', true); }
@@ -2952,6 +2991,10 @@ window.rechazarProfesor = async function(profesorId){
 window.aprobarVerificacionUNM = async function(profesorId){
   try{
     await updateDoc(doc(db,"profesores",profesorId), { verificadoUNM: true, verificacionUNMPendiente: false });
+    getDoc(doc(db,"profesores",profesorId)).then(snap=>{
+      const topic = snap.exists() ? snap.data().ntfyTopic : null;
+      if(topic) enviarNotificacion(topic, 'Verificación UNM aprobada', 'Ya tienes el sello dorado UNM en tu perfil.');
+    });
     toast('Verificación UNM aprobada ✓');
     loadAdminStats();
   }catch(e){ console.error(e); toast('No se pudo aprobar', true); }
@@ -2959,6 +3002,10 @@ window.aprobarVerificacionUNM = async function(profesorId){
 window.rechazarVerificacionUNM = async function(profesorId){
   try{
     await updateDoc(doc(db,"profesores",profesorId), { verificadoUNM: false, verificacionUNMPendiente: false });
+    getDoc(doc(db,"profesores",profesorId)).then(snap=>{
+      const topic = snap.exists() ? snap.data().ntfyTopic : null;
+      if(topic) enviarNotificacion(topic, 'Verificación UNM no aprobada', 'Revisa el documento que subiste e inténtalo de nuevo, o escríbenos por soporte.');
+    });
     toast('Verificación UNM rechazada');
     loadAdminStats();
   }catch(e){ console.error(e); toast('No se pudo procesar', true); }
@@ -2989,6 +3036,11 @@ window.confirmarPago = async function(reservaId){
     if(prof.ntfyTopic){
       enviarNotificacion(prof.ntfyTopic, 'Clase pagada', `${r.alumnoNombre} ya pagó su clase contigo. Ya pueden coordinar por el chat.`);
     }
+    // Avisamos también al alumno: subió su comprobante y se quedó esperando sin
+    // saber si fue aprobado — este es el momento donde menos se puede descuidar.
+    obtenerCanalNotifDe(r.alumnoId).then(topic=>{
+      if(topic) enviarNotificacion(topic, 'Tu pago fue confirmado', `Ya puedes coordinar por el chat con ${r.profesorNombre}. Tu ticket está listo.`);
+    });
 
     toast('Pago confirmado. Se generó el ticket y se avisó al profesor.');
     loadAdminStats();
