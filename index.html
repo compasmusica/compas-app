@@ -575,14 +575,22 @@
   <div class="modal-overlay" id="zonasModal">
     <div class="modal">
       <h3>Zonas adicionales</h3>
-      <div class="hint">¿A qué otros distritos puedes ir además del tuyo? El costo extra es informativo, se coordina por chat.</div>
+      <div class="hint">Tu distrito base (<span id="zona_base_label">—</span>) no tiene costo extra. Para otros distritos donde también enseñas a domicilio, pon un costo de movilidad — se suma automático al total cuando un alumno reserve ahí, y es 100% para ti.</div>
 
       <div class="admin-section-title mono">Tus zonas adicionales</div>
       <div id="zonasList"></div>
 
       <div class="admin-section-title mono">Agregar zona</div>
       <div class="field"><label>Distrito</label><select id="zona_distrito"></select></div>
-      <div class="field"><label>Costo extra (opcional, S/)</label><input type="number" id="zona_costo" placeholder="Ej. 15, o déjalo vacío"></div>
+      <div class="field">
+        <label>Costo de movilidad (S/)</label>
+        <input type="number" id="zona_costo" placeholder="Ej. 15">
+        <div class="dias-chips" style="margin-top:8px;">
+          <span class="tag-pill modo" style="cursor:pointer;" onclick="document.getElementById('zona_costo').value=10">S/ 10</span>
+          <span class="tag-pill modo" style="cursor:pointer;" onclick="document.getElementById('zona_costo').value=15">S/ 15</span>
+          <span class="tag-pill modo" style="cursor:pointer;" onclick="document.getElementById('zona_costo').value=20">S/ 20</span>
+        </div>
+      </div>
       <button class="btn btn-teal btn-block" onclick="agregarZonaAdicional()">+ Agregar zona</button>
 
       <button class="btn btn-primary btn-block" style="margin-top:18px;" onclick="guardarZonas()">Guardar cambios</button>
@@ -687,7 +695,7 @@ const SOPORTE_WHATSAPP = "991 741 746"; // mismo número por ahora, edítalo si 
 const NTFY_TOPIC = "compas-aacfe-reservas-x7f2q";
 
 /* ============ DATOS BASE (catálogos, no van a Firestore) ============ */
-const ZONES = ["Callao","Cercado de Lima","San Miguel","Pueblo Libre","Jesús María","Magdalena","Breña","La Victoria","Surquillo","Miraflores","San Isidro","Barranco","Surco","San Borja","La Molina","Los Olivos","San Martín de Porres","Comas","Independencia","Ate","San Juan de Lurigancho","Villa El Salvador"];
+const ZONES = ["Bellavista","La Perla","La Punta","Carmen de la Legua Reynoso","Cercado del Callao","Ventanilla","Mi Perú","Cercado de Lima","San Miguel","Pueblo Libre","Jesús María","Magdalena","Breña","La Victoria","Surquillo","Miraflores","San Isidro","Barranco","Surco","San Borja","La Molina","Los Olivos","San Martín de Porres","Comas","Independencia","Ate","San Juan de Lurigancho","Villa El Salvador"];
 const INSTRUMENTS = ["Piano","Guitarra","Guitarra Eléctrica","Canto","Violín","Viola","Violonchelo","Contrabajo","Batería","Bajo","Cajón","Percusión","Saxofón","Trompeta","Trombón","Eufonio","Tuba","Corno Francés","Flauta Traversa","Flauta Dulce","Clarinete","Oboe","Fagot","Charango","Cuatro","Ukelele","Arpa","Acordeón","Bandoneón","Órgano","Producción Musical","Solfeo / Teoría"];
 const MODALIDADES = [
   {id:"domicilio", label:"Presencial a Domicilio"},
@@ -976,6 +984,8 @@ let estrellasSeleccionadas = 0;
 
 let slotSeleccionado = null;
 let modalidadElegida = null;
+let tipoClaseElegida = 'completa'; // 'completa' | 'express' — igual que en Compás Al Instante, pero para horarios con anticipación
+let movilidadElegida = 0;
 
 window.openSolicitudModal = function(teacherId){
   if(!currentUser){ toast('Si quieres reservar una clase, primero regístrate como alumno', true); openAuthModal('register'); return; }
@@ -1029,7 +1039,7 @@ window.openSolicitudModal = function(teacherId){
           </div>
         `).join('')}
       </div>
-      <div class="field">
+      <div class="field" id="numclases_wrap">
         <label>¿Cuántas semanas seguidas?</label>
         <select id="sol_numclases">
           <option value="1">Solo esta clase</option>
@@ -1040,7 +1050,33 @@ window.openSolicitudModal = function(teacherId){
       </div>`
     : `<div class="field"><label>¿Qué día y hora te conviene?</label><input type="text" id="sol_horario" placeholder="Ej. Sábados 4pm"></div>`;
 
+  // Microclase Express también se puede agendar con anticipación, no solo en Compás Al
+  // Instante — mismo precio y duración, pero para un horario futuro. Nunca va en paquete
+  // de varias semanas (eso solo aplica a la clase completa).
   const ofreceMicroclase = (solicitudTeacher.modalidades||[]).includes('microclase');
+  tipoClaseElegida = 'completa';
+  const tipoClaseHtml = (ofreceMicroclase && disponibles.length) ? `
+    <div class="field"><label>¿Qué tipo de clase quieres reservar?</label>
+      <div class="dias-chips" style="flex-wrap:wrap;">
+        <span class="tag-pill modo selected-modo" id="tipo_completa" style="cursor:pointer;" onclick="elegirTipoClase('completa')">Clase completa (1h) — S/ ${solicitudTeacher.rate}</span>
+        <span class="tag-pill modo" id="tipo_express" style="cursor:pointer;" onclick="elegirTipoClase('express')">Microclase Express (15-20min) — S/ ${PRECIO_EXPRESS}</span>
+      </div>
+    </div>` : '';
+
+  // Campos de domicilio: distrito (limitado a lo que el profesor realmente cubre) +
+  // referencia/urbanización (visible desde ya) + dirección exacta (se guarda desde ahora,
+  // pero solo se muestra al profesor cuando el admin confirme el pago — ver openChat/render).
+  const domicilioHtml = `
+    <div class="field" id="domicilio_fields" style="display:none;">
+      <label>Tu distrito (clase a domicilio)</label>
+      <select id="sol_distrito_domicilio" onchange="recalcularMovilidad()"></select>
+      <div id="movilidad_preview" style="font-size:12px;color:var(--teal-bright);font-weight:600;margin-top:6px;"></div>
+      <label style="margin-top:10px;">Urbanización / Referencia (opcional)</label>
+      <input type="text" id="sol_referencia" maxlength="60" placeholder="Ej. Chacarilla, cerca al parque">
+      <label style="margin-top:10px;">Dirección exacta (calle, número, dpto)</label>
+      <input type="text" id="sol_direccion_exacta" maxlength="120" placeholder="Se la mostramos al profesor recién cuando confirmes tu pago">
+    </div>`;
+
   const instanteHtml = esDisponibleAhora(solicitudTeacher) ? `
     <div class="instante-toggle-row" style="margin-bottom:16px;">
       <div style="font-weight:700;font-size:13.5px;color:var(--teal-bright);display:flex;align-items:center;gap:6px;"><span class="instante-badge"><span class="dot"></span>EN VIVO</span> Disponible ahora mismo</div>
@@ -1058,16 +1094,62 @@ window.openSolicitudModal = function(teacherId){
     </div>
     ${instanteHtml}
     ${modalidadHtml}
+    ${domicilioHtml}
+    ${tipoClaseHtml}
     ${slotsHtml}
     <div class="field"><label>Mensaje (opcional)</label><textarea id="sol_mensaje" maxlength="140" placeholder="Ej. Soy principiante, busco clases de guitarra"></textarea></div>
   `;
   document.getElementById('reservaModal').classList.add('active');
+
+  // Si "Domicilio" ya quedó elegida sola (el profesor solo ofrece esa modalidad),
+  // mostramos sus campos de una vez, sin esperar a que el alumno toque nada.
+  if(modalidadElegida === 'domicilio') mostrarCamposDomicilio();
 }
 window.closeReservaModal = function(){ document.getElementById('reservaModal').classList.remove('active'); }
 window.elegirModalidad = function(id){
   modalidadElegida = id;
   document.querySelectorAll('[id^="modo_"]').forEach(el=>el.classList.remove('selected-modo'));
   document.getElementById(`modo_${id}`).classList.add('selected-modo');
+  if(id === 'domicilio') mostrarCamposDomicilio();
+  else document.getElementById('domicilio_fields').style.display = 'none';
+}
+window.elegirTipoClase = function(tipo){
+  tipoClaseElegida = tipo;
+  document.getElementById('tipo_completa').classList.toggle('selected-modo', tipo==='completa');
+  document.getElementById('tipo_express').classList.toggle('selected-modo', tipo==='express');
+  // La microclase nunca va en paquete de varias semanas — se oculta esa opción y se
+  // fuerza a "solo esta clase" mientras esté elegida.
+  const wrap = document.getElementById('numclases_wrap');
+  if(wrap){
+    wrap.style.display = tipo==='express' ? 'none' : 'block';
+    if(tipo==='express') document.getElementById('sol_numclases').value = '1';
+  }
+}
+function mostrarCamposDomicilio(){
+  document.getElementById('domicilio_fields').style.display = 'block';
+  const sel = document.getElementById('sol_distrito_domicilio');
+  sel.innerHTML = '';
+  const optBase = document.createElement('option');
+  optBase.value = solicitudTeacher.zone;
+  optBase.textContent = `${solicitudTeacher.zone} (sin costo extra)`;
+  optBase.dataset.costo = '0';
+  sel.appendChild(optBase);
+  (solicitudTeacher.zonasAdicionales||[]).forEach(z=>{
+    const o = document.createElement('option');
+    o.value = z.zona;
+    o.textContent = z.costo ? `${z.zona} (+S/ ${z.costo} movilidad)` : `${z.zona} (sin costo extra)`;
+    o.dataset.costo = String(z.costo || 0);
+    sel.appendChild(o);
+  });
+  recalcularMovilidad();
+}
+window.recalcularMovilidad = function(){
+  const sel = document.getElementById('sol_distrito_domicilio');
+  const costo = Number(sel.selectedOptions[0]?.dataset.costo || 0);
+  movilidadElegida = costo;
+  document.getElementById('movilidad_preview').textContent = costo > 0
+    ? `+ S/ ${costo} de movilidad para el profesor (se suma al total)`
+    : 'Sin costo extra de movilidad en este distrito';
 }
 
 window.seleccionarSlot = function(slotId, texto, fecha){
@@ -1083,22 +1165,41 @@ window.seleccionarSlot = function(slotId, texto, fecha){
 window.submitSolicitud = async function(){
   const modalidadesProgramables = (solicitudTeacher.modalidades||[]).filter(id=>id!=='instantaneo' && id!=='microclase');
   if(modalidadesProgramables.length > 1 && !modalidadElegida){ toast('Elige cómo quieres tu clase (modalidad)', true); return; }
+  const modalidadFinal = modalidadElegida || modalidadesProgramables[0] || null;
 
   const disponibles = (solicitudTeacher.horarios || []).filter(b=>b.estado==='disponible' && b.fecha && b.fecha>=hoyISO());
   let horario, numClases = 1;
   if(disponibles.length){
     if(!slotSeleccionado){ toast('Elige uno de los horarios disponibles', true); return; }
     horario = slotSeleccionado.texto;
-    numClases = Number(document.getElementById('sol_numclases')?.value || 1);
+    numClases = tipoClaseElegida==='express' ? 1 : Number(document.getElementById('sol_numclases')?.value || 1);
   } else {
     horario = document.getElementById('sol_horario')?.value.trim();
     if(!horario){ toast('Cuéntanos qué horario te conviene', true); return; }
   }
   const mensaje = document.getElementById('sol_mensaje')?.value.trim() || '';
 
+  // Datos de domicilio: solo se piden y se guardan si la modalidad elegida es "a domicilio".
+  let distritoDomicilio = null, referenciaZona = null, direccionExacta = null;
+  if(modalidadFinal === 'domicilio'){
+    distritoDomicilio = document.getElementById('sol_distrito_domicilio')?.value || null;
+    referenciaZona = document.getElementById('sol_referencia')?.value.trim() || '';
+    direccionExacta = document.getElementById('sol_direccion_exacta')?.value.trim() || '';
+    if(!distritoDomicilio){ toast('Elige tu distrito para la clase a domicilio', true); return; }
+    if(!direccionExacta){ toast('Escribe tu dirección exacta (se la mostramos al profesor recién con tu pago confirmado)', true); return; }
+  }
+
   try{
-    const precioTotal = solicitudTeacher.rate * numClases;
-    const comision = Math.round(precioTotal * COMISION_PORCENTAJE * 100)/100;
+    // El precio de la clase y el pasaje de movilidad se guardan SEPARADOS a propósito:
+    // la comisión de la app se calcula solo sobre la clase, nunca sobre la movilidad —
+    // esa plata es 100% para el profesor. El pasaje se cobra por sesión (el profesor
+    // se moviliza cada vez), por eso se multiplica igual que la clase por numClases.
+    const precioPorClaseUnitario = tipoClaseElegida==='express' ? PRECIO_EXPRESS : solicitudTeacher.rate;
+    const precioClases = precioPorClaseUnitario * numClases;
+    const movilidadTotal = movilidadElegida * numClases;
+    const precioTotal = precioClases + movilidadTotal;
+    const comision = Math.round(precioClases * COMISION_PORCENTAJE * 100)/100; // solo sobre la clase, no sobre el pasaje
+    const gananciaProfesor = (precioClases - comision) + movilidadTotal;
 
     const clases = numClases > 1
       ? Array.from({length:numClases}, (_,i)=>({
@@ -1116,11 +1217,15 @@ window.submitSolicitud = async function(){
       profesorNombre: solicitudTeacher.name,
       profesorPhone: solicitudTeacher.phone || '',
       precio: precioTotal,
-      precioPorClase: solicitudTeacher.rate,
+      precioClases,
+      movilidad: movilidadTotal,
+      precioPorClase: precioPorClaseUnitario,
       comisionApp: comision,
-      gananciaProfesor: precioTotal - comision,
+      gananciaProfesor,
       horario, mensaje,
-      modalidad: modalidadElegida || modalidadesProgramables[0] || null,
+      modalidad: modalidadFinal,
+      tipoClase: tipoClaseElegida,
+      distritoDomicilio, referenciaZona, direccionExacta,
       slotId: slotSeleccionado ? slotSeleccionado.id : null,
       esPaquete: numClases > 1,
       numeroClases: numClases,
@@ -1133,10 +1238,11 @@ window.submitSolicitud = async function(){
     // Le avisamos solo al profesor solicitado, a su propio canal — no a ti.
     // El aviso de pagos (a tu canal) sigue funcionando aparte, sin cambios.
     if(solicitudTeacher.ntfyTopic){
+      const avisoUbicacion = modalidadFinal==='domicilio' ? ` — ${distritoDomicilio}${referenciaZona ? ' ('+referenciaZona+')' : ''}` : '';
       enviarNotificacion(
         solicitudTeacher.ntfyTopic,
         'Nueva solicitud de horario',
-        `${currentUser.name} te pidió horario: "${horario}"`
+        `${currentUser.name} te pidió horario: "${horario}"${avisoUbicacion} · Total S/ ${precioTotal}`
       );
     }
     closeReservaModal();
@@ -1229,13 +1335,21 @@ window.rechazarSolicitud = async function(reservaId){
 }
 
 /* Alumno paga una vez el profesor confirmó disponibilidad */
-window.openPagoModal = function(reservaId, precio){
+window.openPagoModal = function(reservaId, precio, precioClases, movilidad){
   pagoReservaId = reservaId;
   comprobanteData = null;
   document.getElementById('reservaModalTitle').textContent = 'Pagar clase';
   document.getElementById('reservaModalBtn').textContent = 'Ya pagué';
+  const desgloseHtml = (movilidad > 0) ? `
+    <div class="sup-card" style="margin-bottom:14px;">
+      <div class="sup-meta" style="display:flex;justify-content:space-between;"><span>Costo de clase</span><span>S/ ${precioClases}</span></div>
+      <div class="sup-meta" style="display:flex;justify-content:space-between;margin-top:4px;"><span>Movilidad / Pasaje docente</span><span>S/ ${movilidad}</span></div>
+      <div class="sup-meta" style="display:flex;justify-content:space-between;margin-top:6px;padding-top:6px;border-top:1px solid rgba(32,36,46,0.1);font-weight:700;color:var(--text-warm);"><span>Total a pagar</span><span>S/ ${precio}</span></div>
+      <div style="font-size:10.5px;color:var(--text-dim);margin-top:4px;">La movilidad es 100% para el profesor, no se cobra comisión sobre ella.</div>
+    </div>` : '';
   document.getElementById('reserva_body').innerHTML = `
     <div class="step-eyebrow mono" style="margin-bottom:10px;">Paso 1 · Transfiere</div>
+    ${desgloseHtml}
     <div class="hint" style="margin-bottom:14px;">Yapea o transfiere S/ ${precio} a:</div>
     <div class="admin-row"><span class="name">Yape / Plin</span><span class="meta mono">${PAGO_YAPE}</span></div>
     <div class="admin-row"><span class="name">A nombre de</span><span class="meta">${PAGO_NOMBRE}</span></div>
@@ -1535,7 +1649,7 @@ function renderMisReservas(lista, rol){
       estadoTxt = r.tipo==='instantanea'
         ? (rol==='alumno' ? '⚡ Pedido al instante, falta tu pago' : '⚡ Te pidieron clase ahora mismo, falta que pague')
         : (rol==='alumno' ? 'Horario confirmado, falta tu pago' : 'Confirmaste, esperando pago');
-      if(rol==='alumno') accion = `<button class="btn btn-teal btn-sm" style="margin-top:8px;" onclick="openPagoModal('${r.id}', ${r.precio})">Pagar ahora</button>`;
+      if(rol==='alumno') accion = `<button class="btn btn-teal btn-sm" style="margin-top:8px;" onclick="openPagoModal('${r.id}', ${r.precio}, ${r.precioClases ?? r.precio}, ${r.movilidad || 0})">Pagar ahora</button>`;
     } else if(r.estado==='pendiente_pago'){
       estadoTxt = 'Verificando tu pago';
     } else if(r.estado==='pago_confirmado'){
@@ -1561,9 +1675,17 @@ function renderMisReservas(lista, rol){
       ? `<button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="openChat('${r.id}','${otro.replace(/'/g,"")}')">💬 Chat</button>`
       : '';
     const modalidadTxt = r.modalidad ? MODALIDADES.find(m=>m.id===r.modalidad)?.label : null;
+    // La dirección exacta (calle/número/dpto) recién se muestra cuando el pago ya está
+    // confirmado — antes de eso, el profesor solo ve el distrito y la referencia general,
+    // suficiente para decidir si acepta la solicitud.
+    const direccionRevelada = ['pago_confirmado','completada'].includes(r.estado);
+    const ubicacionHtml = r.modalidad==='domicilio'
+      ? `<div class="sup-meta">📍 ${r.distritoDomicilio || ''}${r.referenciaZona ? ' · '+r.referenciaZona : ''}${direccionRevelada && r.direccionExacta ? ' · '+r.direccionExacta : (r.direccionExacta ? ' · (dirección exacta visible tras confirmar el pago)' : '')}</div>`
+      : '';
     return `<div class="sup-card">
       <div class="sup-top"><span class="sup-title">${otro}</span><span class="sup-monto">S/ ${r.precio}</span></div>
       <div class="sup-meta">${r.horario}${modalidadTxt ? ` · ${modalidadTxt}` : ''}</div>
+      ${ubicacionHtml}
       <div class="sup-meta">${estadoTxt}</div>
       <div class="cta-row" style="margin-top:2px;">${accion}${chatBtn}</div>
     </div>`;
@@ -2315,6 +2437,7 @@ let zonasDraft = [];
 window.openZonasModal = function(){
   if(!currentEditingTeacher){ toast('Primero publica tu perfil de profesor', true); return; }
   zonasDraft = [...(currentEditingTeacher.zonasAdicionales || [])];
+  document.getElementById('zona_base_label').textContent = currentEditingTeacher.zone || '—';
   populateZonaDistritoSelect();
   renderZonasList();
   document.getElementById('zonasModal').classList.add('active');
@@ -2886,6 +3009,15 @@ function generarTicketPDF(r, prof){
   if(r.modalidad){
     const modalidadTxt = MODALIDADES.find(m=>m.id===r.modalidad)?.label || r.modalidad;
     campo('Modalidad de esta clase', modalidadTxt);
+  }
+  if(r.modalidad === 'domicilio'){
+    campo('Distrito', r.distritoDomicilio);
+    if(r.referenciaZona) campo('Referencia', r.referenciaZona);
+    if(r.direccionExacta) campo('Dirección exacta', r.direccionExacta);
+  }
+  if(r.movilidad > 0){
+    campo('Costo de clase', `S/ ${r.precioClases}`);
+    campo('Movilidad / Pasaje docente', `S/ ${r.movilidad}`);
   }
   campo('Monto total', `S/ ${r.precio}`);
   campo('Estado', 'Pago confirmado');
