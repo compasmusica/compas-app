@@ -1185,6 +1185,7 @@ window.seleccionarSlot = function(slotId, texto, fecha){
    simplemente suman 7 días exactos a partir de esa fecha real. Ver sumarDiasISO(). */
 
 window.submitSolicitud = async function(){
+ try{
   const modalidadesProgramables = (solicitudTeacher.modalidades||[]).filter(id=>id!=='instantaneo' && id!=='microclase');
   if(modalidadesProgramables.length > 1 && !modalidadElegida){ toast('Elige cómo quieres tu clase (modalidad)', true); return; }
   const modalidadFinal = modalidadElegida || modalidadesProgramables[0] || null;
@@ -1196,17 +1197,22 @@ window.submitSolicitud = async function(){
     horario = slotSeleccionado.texto;
     numClases = tipoClaseElegida==='express' ? 1 : Number(document.getElementById('sol_numclases')?.value || 1);
   } else {
-    horario = document.getElementById('sol_horario')?.value.trim();
+    const elHorario = document.getElementById('sol_horario');
+    horario = elHorario ? elHorario.value.trim() : '';
     if(!horario){ toast('Cuéntanos qué horario te conviene', true); return; }
   }
-  const mensaje = document.getElementById('sol_mensaje')?.value.trim() || '';
+  const elMensaje = document.getElementById('sol_mensaje');
+  const mensaje = elMensaje ? elMensaje.value.trim() : '';
 
   // Datos de domicilio: solo se piden y se guardan si la modalidad elegida es "a domicilio".
   let distritoDomicilio = null, referenciaZona = null, direccionExacta = null;
   if(modalidadFinal === 'domicilio'){
-    distritoDomicilio = document.getElementById('sol_distrito_domicilio')?.value || null;
-    referenciaZona = document.getElementById('sol_referencia')?.value.trim() || '';
-    direccionExacta = document.getElementById('sol_direccion_exacta')?.value.trim() || '';
+    const elDistrito = document.getElementById('sol_distrito_domicilio');
+    const elReferencia = document.getElementById('sol_referencia');
+    const elDireccion = document.getElementById('sol_direccion_exacta');
+    distritoDomicilio = elDistrito ? elDistrito.value : null;
+    referenciaZona = elReferencia ? elReferencia.value.trim() : '';
+    direccionExacta = elDireccion ? elDireccion.value.trim() : '';
     if(!distritoDomicilio){ toast('Elige tu distrito para la clase a domicilio', true); return; }
     if(!direccionExacta){ toast('Escribe tu dirección exacta (se la mostramos al profesor recién con tu pago confirmado)', true); return; }
   }
@@ -1273,6 +1279,13 @@ window.submitSolicitud = async function(){
     console.error(e);
     toast('No se pudo enviar la solicitud, intenta de nuevo', true);
   }
+ }catch(e){
+   // Red de seguridad: si algo se rompe ANTES de llegar al bloque de arriba (por
+   // ejemplo, un campo que no se encontró en pantalla), esto asegura que el alumno
+   // siempre vea un mensaje en vez de que el botón "no reaccione" en silencio.
+   console.error('Error inesperado en submitSolicitud:', e);
+   toast('Algo falló al enviar tu solicitud. Vuelve a intentarlo o recarga la página.', true);
+ }
 }
 
 /* Pedido de clase instantánea (Compás Al Instante) — se salta la elección de horario,
@@ -1280,7 +1293,8 @@ window.submitSolicitud = async function(){
    porque ya se anunció como disponible ahora mismo) y avisa urgente por ntfy. */
 window.pedirClaseInstantanea = async function(duracion){
   if(!esDisponibleAhora(solicitudTeacher)){ toast('Ese profesor ya no está disponible al instante', true); closeReservaModal(); return; }
-  const mensaje = document.getElementById('sol_mensaje')?.value.trim() || '';
+  const elMensaje = document.getElementById('sol_mensaje');
+  const mensaje = elMensaje ? elMensaje.value.trim() : '';
   const esExpress = duracion === 'express';
   try{
     const precioTotal = esExpress ? PRECIO_EXPRESS : solicitudTeacher.rate;
