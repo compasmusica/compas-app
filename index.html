@@ -1549,6 +1549,14 @@ window.openChat = async function(reservaId, otroNombre){
     chatAlumnoId = r.alumnoId;
     chatProfesorId = r.profesorId;
 
+    // El chat recién se desbloquea cuando el admin confirma el pago — si alguien
+    // llega aquí antes de eso (ej. con la app en caché desactualizada), se lo
+    // explicamos en vez de dejar que falle en silencio contra las reglas de Firestore.
+    if(!['pago_confirmado','completada'].includes(r.estado) && !currentUser.esAdmin){
+      document.getElementById('chatMessages').innerHTML = `<div class="empty-state"><p>Este chat se desbloquea cuando el pago quede confirmado.<br>Revisa "Mis reservas" para ver el estado.</p></div>`;
+      return;
+    }
+
     if(chatUnsub) chatUnsub(); // corta cualquier chat anterior que hubiera quedado abierto
     const mensajesQ = query(collection(db,"reservas",reservaId,"mensajes"), orderBy("createdAt","asc"));
     chatUnsub = onSnapshot(mensajesQ, (snap)=>{
@@ -1721,7 +1729,7 @@ function renderMisReservas(lista, rol){
     } else if(r.estado==='rechazada'){
       estadoTxt = 'Ese horario no funcionó. Intenta con otro.';
     }
-    const chatBtn = r.estado!=='rechazada'
+    const chatBtn = ['pago_confirmado','completada'].includes(r.estado)
       ? `<button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="openChat('${r.id}','${otro.replace(/'/g,"")}')">💬 Chat</button>`
       : '';
     const modalidadTxt = r.modalidad ? MODALIDADES.find(m=>m.id===r.modalidad)?.label : null;
