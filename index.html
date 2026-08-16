@@ -1018,6 +1018,7 @@ window.openSolicitudModal = function(teacherId){
   pagoReservaId = null;
   slotSeleccionado = null;
   modalidadElegida = null;
+  movilidadElegida = 0;
   document.getElementById('reservaModalTitle').textContent = 'Solicitar horario';
   document.getElementById('reservaModalBtn').textContent = 'Enviar solicitud';
 
@@ -1278,14 +1279,14 @@ window.submitSolicitud = async function(){
     toast('Solicitud enviada. Revisa "Mis reservas" cuando el profesor confirme.');
   }catch(e){
     console.error(e);
-    toast('No se pudo enviar la solicitud, intenta de nuevo', true);
+    toast('No se pudo enviar: ' + (e.message || e.code || 'error desconocido'), true);
   }
  }catch(e){
    // Red de seguridad: si algo se rompe ANTES de llegar al bloque de arriba (por
    // ejemplo, un campo que no se encontró en pantalla), esto asegura que el alumno
    // siempre vea un mensaje en vez de que el botón "no reaccione" en silencio.
    console.error('Error inesperado en submitSolicitud:', e);
-   toast('Algo falló al enviar tu solicitud. Vuelve a intentarlo o recarga la página.', true);
+   toast('Algo falló: ' + (e.message || 'error desconocido'), true);
  }
 }
 
