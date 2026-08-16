@@ -1008,6 +1008,7 @@ let slotSeleccionado = null;
 let modalidadElegida = null;
 let tipoClaseElegida = 'completa'; // 'completa' | 'express' — igual que en Compás Al Instante, pero para horarios con anticipación
 let movilidadElegida = 0;
+let misReservasUnsub = null; // corta el listener en vivo cuando el alumno/profesor sale de "Mis reservas"
 
 window.openSolicitudModal = function(teacherId){
   if(!currentUser){ toast('Si quieres reservar una clase, primero regístrate como alumno', true); openAuthModal('register'); return; }
@@ -1670,23 +1671,22 @@ window.sendChatMessage = async function(){
 }
 
 /* ============ MIS RESERVAS (alumno) + SOLICITUDES (profesor) ============ */
-async function loadMyReservas(){
+function loadMyReservas(){
   if(!currentUser) return;
-  try{
-    if(currentUser.role === 'alumno'){
-      const q = query(collection(db,"reservas"), where("alumnoId","==",currentUser.uid));
-      const snap = await getDocs(q);
-      const misReservas = [];
-      snap.forEach(d=> misReservas.push({ id:d.id, ...d.data() }));
-      renderMisReservas(misReservas, 'alumno');
-    } else if(currentUser.role === 'profesor'){
-      const q = query(collection(db,"reservas"), where("profesorId","==",currentUser.uid));
-      const snap = await getDocs(q);
-      const misSolicitudes = [];
-      snap.forEach(d=> misSolicitudes.push({ id:d.id, ...d.data() }));
-      renderMisReservas(misSolicitudes, 'profesor');
-    }
-  }catch(e){ console.error(e); }
+  if(misReservasUnsub) misReservasUnsub(); // corta el listener anterior antes de abrir uno nuevo
+
+  const campo = currentUser.role === 'profesor' ? 'profesorId' : 'alumnoId';
+  const rol = currentUser.role === 'profesor' ? 'profesor' : 'alumno';
+  const q = query(collection(db,"reservas"), where(campo,"==",currentUser.uid));
+
+  // En vivo: apenas cambie algo (el admin confirma un pago, el profesor confirma
+  // disponibilidad, etc.) esta pantalla se actualiza sola, sin que nadie tenga que
+  // salir y volver a entrar para enterarse.
+  misReservasUnsub = onSnapshot(q, (snap)=>{
+    const lista = [];
+    snap.forEach(d=> lista.push({ id:d.id, ...d.data() }));
+    renderMisReservas(lista, rol);
+  }, (e)=>{ console.error('Error en el listener de Mis reservas:', e); });
 }
 
 function renderMisReservas(lista, rol){
@@ -1710,6 +1710,11 @@ function renderMisReservas(lista, rol){
       if(rol==='alumno') accion = `<button class="btn btn-teal btn-sm" style="margin-top:8px;" onclick="openPagoModal('${r.id}', ${r.precio}, ${r.precioClases ?? r.precio}, ${r.movilidad || 0})">Pagar ahora</button>`;
     } else if(r.estado==='pendiente_pago'){
       estadoTxt = 'Verificando tu pago';
+      // El alumno acaba de subir su comprobante y queda esperando sin ver nada —
+      // le mostramos de vuelta lo que subió, para que confíe en que sí se envió bien.
+      if(rol==='alumno' && r.comprobante){
+        accion = `<div style="margin-top:8px;"><div class="mono" style="font-size:10.5px;color:var(--text-dim);margin-bottom:5px;">Tu comprobante:</div><img src="${r.comprobante}" style="width:100%;max-width:220px;border-radius:8px;display:block;"></div>`;
+      }
     } else if(r.estado==='pago_confirmado'){
       if(r.esPaquete && r.clases){
         const pendientesTxt = r.clases.filter(c=>c.estado==='pendiente').length;
@@ -1758,6 +1763,10 @@ window.switchView = function(name){
   const btn = document.querySelector(`.navbtn[data-nav="${name}"]`);
   if(btn) btn.classList.add('active');
   if(name==='ensenar') renderMyProfilePreview();
+
+  // "Mis reservas" escucha en vivo mientras está abierta — la cortamos al salir
+  // para no gastar cuota de Firestore escuchando algo que ya nadie está viendo.
+  if(name!=='misreservas' && misReservasUnsub){ misReservasUnsub(); misReservasUnsub = null; }
 
   // El chat usa toda la pantalla; ocultamos la barra inferior para que
   // el cuadro de escribir no quede tapado detrás de ella.
