@@ -492,10 +492,15 @@
     <div class="modal">
       <h3>Publicar suplencia</h3>
       <div class="hint">Visible para todo el gremio.</div>
+      <div class="field" id="sup_origen_field" style="display:none;">
+        <label>¿Es para reemplazar una clase que ya tienes confirmada?</label>
+        <select id="sup_origen" onchange="heredarDeReserva()"></select>
+        <div class="hint" style="margin-top:4px;">Elige una y se rellenan los datos por ti. Igual puedes editarlos antes de publicar.</div>
+      </div>
       <div class="field"><label>Instrumento</label><select id="sup_instrument"></select></div>
       <div class="field"><label>Distrito</label><select id="sup_zone"></select></div>
       <div class="field"><label>Pago ofrecido (S/)</label><input type="number" id="sup_monto" placeholder="Ej. 40"></div>
-      <div class="field"><label>Mensaje</label><textarea id="sup_msg" maxlength="140" placeholder="Ej. Clase particular, sábado 4pm, alumno intermedio"></textarea></div>
+      <div class="field"><label>Mensaje</label><textarea id="sup_msg" maxlength="220" placeholder="Ej. Clase particular, sábado 4pm, alumno intermedio"></textarea></div>
       <div class="cta-row">
         <button class="btn btn-ghost btn-block" onclick="closeSuplenciaForm()">Cancelar</button>
         <button class="btn btn-primary btn-block" onclick="submitSuplencia()">Publicar</button>
@@ -2752,9 +2757,60 @@ window.doLogout = async function(){
 }
 
 /* ============ MÓDULO GREMIO: BOLSA DE SUPLENCIAS ============ */
-window.openSuplenciaForm = function(){
+let misReservasParaSuplencia = [];
+window.openSuplenciaForm = async function(){
   if(!currentUser || currentUser.role !== 'profesor'){ toast('Solo profesores del gremio pueden publicar suplencias', true); return; }
   document.getElementById('suplenciaModal').classList.add('active');
+
+  // Reservas confirmadas del profesor, para poder heredar sus datos y no
+  // tener que volver a escribir todo a mano.
+  try{
+    const q = query(collection(db,"reservas"), where("profesorId","==",currentUser.uid), where("estado","==","pago_confirmado"));
+    const snap = await getDocs(q);
+    misReservasParaSuplencia = [];
+    snap.forEach(d=> misReservasParaSuplencia.push({ id:d.id, ...d.data() }));
+    const origenField = document.getElementById('sup_origen_field');
+    if(misReservasParaSuplencia.length){
+      const sel = document.getElementById('sup_origen');
+      sel.innerHTML = `<option value="">— Elige una clase (opcional) —</option>` +
+        misReservasParaSuplencia.map(r=>`<option value="${r.id}">${r.horario} · S/ ${r.precio} · ${r.alumnoNombre}</option>`).join('');
+      origenField.style.display = 'block';
+    } else {
+      origenField.style.display = 'none';
+    }
+  }catch(e){ console.error('No se pudieron cargar tus clases confirmadas:', e); }
+}
+window.heredarDeReserva = function(){
+  const id = document.getElementById('sup_origen').value;
+  if(!id) return;
+  const r = misReservasParaSuplencia.find(x=>x.id===id);
+  if(!r) return;
+
+  // Instrumento: la reserva no guarda cuál instrumento específico se dio, así que
+  // usamos tu especialidad como mejor estimado — se puede corregir a mano igual.
+  const instrSel = document.getElementById('sup_instrument');
+  const especialidad = currentEditingTeacher?.especialidad;
+  if(especialidad && [...instrSel.options].some(o=>o.value===especialidad)) instrSel.value = especialidad;
+
+  // Zona: si es a domicilio, el distrito real del alumno; si no, tu propia zona.
+  const zoneSel = document.getElementById('sup_zone');
+  const zonaSugerida = r.modalidad==='domicilio' ? r.distritoDomicilio : currentEditingTeacher?.zone;
+  if(zonaSugerida && [...zoneSel.options].some(o=>o.value===zonaSugerida)) zoneSel.value = zonaSugerida;
+
+  document.getElementById('sup_monto').value = r.precioClases ?? r.precio;
+
+  // El mensaje público NUNCA lleva el nombre del alumno ni su dirección exacta —
+  // eso se coordina en privado entre profesores, no se publica al gremio entero.
+  const modalidadTxt = MODALIDADES.find(m=>m.id===r.modalidad)?.label || r.modalidad || '';
+  let mensaje = `Clase de reemplazo: ${r.horario}${modalidadTxt ? ' · '+modalidadTxt : ''}.`;
+  if(r.movilidad > 0){
+    mensaje += ` Ojo: el alumno vive en una zona con movilidad de S/ ${r.movilidad} para mí — puede ser distinto para ti según dónde vivas, coordinarlo con quien la tome.`;
+  }
+  if(r.esPaquete){
+    mensaje += ` Es parte de un paquete de ${r.numeroClases} clases.`;
+  }
+  document.getElementById('sup_msg').value = mensaje;
+  toast('Datos rellenados — revísalos antes de publicar');
 }
 window.closeSuplenciaForm = function(){ document.getElementById('suplenciaModal').classList.remove('active'); }
 
@@ -2763,6 +2819,7 @@ window.submitSuplencia = async function(){
   const zone = document.getElementById('sup_zone').value;
   const monto = document.getElementById('sup_monto').value;
   const msg = document.getElementById('sup_msg').value.trim();
+  const reservaOrigenId = document.getElementById('sup_origen')?.value || null;
   if(!instrument || !zone || !monto){ toast('Completa instrumento, zona y monto', true); return; }
 
   try{
@@ -2771,6 +2828,7 @@ window.submitSuplencia = async function(){
       teacherName: currentUser.name,
       teacherPhone: currentUser.phone || '',
       instrument, zone, monto: Number(monto), mensaje: msg,
+      reservaOrigenId,
       estado: "abierta",
       postulantes: [],
       createdAt: serverTimestamp()
