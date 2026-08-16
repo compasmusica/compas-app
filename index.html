@@ -1050,29 +1050,6 @@ window.openSolicitudModal = function(teacherId){
   // Filtro defensivo por fecha: aunque el profesor no haya abierto "Mis horarios"
   // recientemente para regenerar, un bloque con fecha vencida nunca se muestra al alumno.
   const disponibles = (solicitudTeacher.horarios || []).filter(b=>b.estado==='disponible' && b.fecha && b.fecha>=hoyISO());
-  const porFecha = {};
-  disponibles.forEach(b=>{ (porFecha[b.fecha] = porFecha[b.fecha]||[]).push(b); });
-  const fechasOrdenadas = Object.keys(porFecha).sort();
-
-  const slotsHtml = disponibles.length
-    ? `<div class="field"><label>Elige un horario disponible</label>
-        ${fechasOrdenadas.map(fecha=>`
-          <div style="margin-bottom:10px;">
-            <div class="mono" style="color:var(--text-dim);font-size:11px;margin-bottom:6px;text-transform:capitalize;">${formatFechaLarga(fecha)}</div>
-            ${porFecha[fecha].sort((a,b)=>a.inicio.localeCompare(b.inicio)).map(b=>`<span class="slot-pill" id="slot_${b.id}" onclick="seleccionarSlot('${b.id}','${formatFechaCorta(b.fecha)} · ${b.inicio}–${b.fin}','${b.fecha}')">${b.inicio}–${b.fin}</span>`).join('')}
-          </div>
-        `).join('')}
-      </div>
-      <div class="field" id="numclases_wrap">
-        <label>¿Cuántas semanas seguidas?</label>
-        <select id="sol_numclases">
-          <option value="1">Solo esta clase</option>
-          <option value="4">4 semanas</option>
-          <option value="8">8 semanas</option>
-          <option value="12">12 semanas</option>
-        </select>
-      </div>`
-    : `<div class="field"><label>¿Qué día y hora te conviene?</label><input type="text" id="sol_horario" placeholder="Ej. Sábados 4pm"></div>`;
 
   // Microclase Express también se puede agendar con anticipación, no solo en Compás Al
   // Instante — mismo precio y duración, pero para un horario futuro. Nunca va en paquete
@@ -1120,10 +1097,11 @@ window.openSolicitudModal = function(teacherId){
     ${modalidadHtml}
     ${domicilioHtml}
     ${tipoClaseHtml}
-    ${slotsHtml}
+    <div id="slots_wrap"></div>
     <div class="field"><label>Mensaje (opcional)</label><textarea id="sol_mensaje" maxlength="140" placeholder="Ej. Soy principiante, busco clases de guitarra"></textarea></div>
   `;
   document.getElementById('reservaModal').classList.add('active');
+  renderSlotsSection();
 
   // Si "Domicilio" ya quedó elegida sola (el profesor solo ofrece esa modalidad),
   // mostramos sus campos de una vez, sin esperar a que el alumno toque nada.
@@ -1141,13 +1119,63 @@ window.elegirTipoClase = function(tipo){
   tipoClaseElegida = tipo;
   document.getElementById('tipo_completa').classList.toggle('selected-modo', tipo==='completa');
   document.getElementById('tipo_express').classList.toggle('selected-modo', tipo==='express');
-  // La microclase nunca va en paquete de varias semanas — se oculta esa opción y se
-  // fuerza a "solo esta clase" mientras esté elegida.
-  const wrap = document.getElementById('numclases_wrap');
-  if(wrap){
-    wrap.style.display = tipo==='express' ? 'none' : 'block';
-    if(tipo==='express') document.getElementById('sol_numclases').value = '1';
+  // Cambia la granularidad de los horarios (1h completa vs franjas de 20min), así
+  // que cualquier horario ya elegido queda invalidado — hay que volver a elegir.
+  slotSeleccionado = null;
+  renderSlotsSection();
+}
+
+/* Divide un bloque de 1 hora en 3 franjas de 20 minutos, solo para mostrarlas claras
+   cuando la clase es Microclase Express. La franja que se elija sigue ocupando la
+   hora completa del profesor (los bloques siguen siendo de 1h por diseño — el
+   profesor coordina la hora exacta dentro de esa hora, ver decisión anterior), esto
+   es solo para que el alumno vea con claridad en qué tramo exacto quiere su clase. */
+function subFranjasDeUnBloque(b){
+  const inicioMin = horaAMinutos(b.inicio);
+  return [0,20,40].map(offset=>({
+    ini: minutosAHora(inicioMin+offset),
+    fin: minutosAHora(inicioMin+offset+20)
+  }));
+}
+function renderSlotsSection(){
+  const wrap = document.getElementById('slots_wrap');
+  if(!wrap) return;
+  const disponibles = (solicitudTeacher.horarios || []).filter(b=>b.estado==='disponible' && b.fecha && b.fecha>=hoyISO());
+  if(!disponibles.length){
+    wrap.innerHTML = `<div class="field"><label>¿Qué día y hora te conviene?</label><input type="text" id="sol_horario" placeholder="Ej. Sábados 4pm"></div>`;
+    return;
   }
+  const porFecha = {};
+  disponibles.forEach(b=>{ (porFecha[b.fecha] = porFecha[b.fecha]||[]).push(b); });
+  const fechasOrdenadas = Object.keys(porFecha).sort();
+  const esExpress = tipoClaseElegida === 'express';
+
+  const pillsHtml = fechasOrdenadas.map(fecha=>`
+    <div style="margin-bottom:10px;">
+      <div class="mono" style="color:var(--text-dim);font-size:11px;margin-bottom:6px;text-transform:capitalize;">${formatFechaLarga(fecha)}</div>
+      ${porFecha[fecha].sort((a,b)=>a.inicio.localeCompare(b.inicio)).map(b=>{
+        if(esExpress){
+          return subFranjasDeUnBloque(b).map(s=>
+            `<span class="slot-pill" onclick="seleccionarSlot(this,'${b.id}','${formatFechaCorta(b.fecha)} · ${s.ini}–${s.fin}','${b.fecha}')">${s.ini}–${s.fin}</span>`
+          ).join('');
+        }
+        return `<span class="slot-pill" onclick="seleccionarSlot(this,'${b.id}','${formatFechaCorta(b.fecha)} · ${b.inicio}–${b.fin}','${b.fecha}')">${b.inicio}–${b.fin}</span>`;
+      }).join('')}
+    </div>
+  `).join('');
+
+  const numClasesHtml = esExpress ? '' : `
+    <div class="field" id="numclases_wrap">
+      <label>¿Cuántas semanas seguidas?</label>
+      <select id="sol_numclases">
+        <option value="1">Solo esta clase</option>
+        <option value="4">4 semanas</option>
+        <option value="8">8 semanas</option>
+        <option value="12">12 semanas</option>
+      </select>
+    </div>`;
+
+  wrap.innerHTML = `<div class="field"><label>Elige un horario disponible${esExpress ? ' (franjas de 20 min)' : ''}</label>${pillsHtml}</div>${numClasesHtml}`;
 }
 function mostrarCamposDomicilio(){
   document.getElementById('domicilio_fields').style.display = 'block';
@@ -1176,10 +1204,10 @@ window.recalcularMovilidad = function(){
     : 'Sin costo extra de movilidad en este distrito';
 }
 
-window.seleccionarSlot = function(slotId, texto, fecha){
+window.seleccionarSlot = function(el, slotId, texto, fecha){
   slotSeleccionado = { id: slotId, texto, fecha };
-  document.querySelectorAll('.slot-pill').forEach(el=>el.classList.remove('selected'));
-  document.getElementById(`slot_${slotId}`).classList.add('selected');
+  document.querySelectorAll('.slot-pill').forEach(e=>e.classList.remove('selected'));
+  el.classList.add('selected');
 }
 
 /* Ya no hace falta "adivinar" la próxima fecha por nombre de día: cada slot ahora
@@ -2816,7 +2844,7 @@ window.guardarPrecioExpress = async function(){
 
 window.borrarTodasLasReservas = async function(){
   if(!currentUser?.esAdmin) return;
-  if(!confirm('Esto borra TODAS las reservas — incluye sus chats, comprobantes de pago (capturas) y el registro de ingresos/comisiones. No se puede deshacer.\n\n¿Seguro que quieres continuar?')) return;
+  if(!confirm('Esto borra TODAS las reservas — incluye sus chats, comprobantes de pago (capturas) y el registro de ingresos/comisiones. También libera los horarios que hubieran quedado marcados "ocupado" por esas reservas. No se puede deshacer.\n\n¿Seguro que quieres continuar?')) return;
   if(!confirm('Última confirmación: se van a borrar TODAS las reservas de la plataforma, incluidas reales si ya las hubiera. ¿Continuar de todas formas?')) return;
   try{
     toast('Borrando reservas y chats, un momento…');
@@ -2826,7 +2854,23 @@ window.borrarTodasLasReservas = async function(){
       await Promise.all(mensajesSnap.docs.map(m=>deleteDoc(doc(db,"reservas",d.id,"mensajes",m.id))));
       await deleteDoc(doc(db,"reservas",d.id));
     }
-    toast(`Se borraron ${snap.docs.length} reserva(s) y sus chats ✓`);
+
+    // Liberamos los horarios que hubieran quedado "ocupado" por esas reservas ya
+    // borradas — si no, se quedan marcados como ocupados para siempre, sin ninguna
+    // reserva real detrás (eran huérfanos, y ningún alumno los podía volver a pedir).
+    let horariosLiberados = 0;
+    const profSnap = await getDocs(collection(db,"profesores"));
+    for(const p of profSnap.docs){
+      const horarios = p.data().horarios || [];
+      let cambio = false;
+      const horariosLibres = horarios.map(b=>{
+        if(b.estado === 'ocupado'){ cambio = true; horariosLiberados++; return {...b, estado:'disponible'}; }
+        return b; // "bloqueado" (bloqueos puntuales del profesor) no se toca, eso es aparte
+      });
+      if(cambio) await updateDoc(doc(db,"profesores",p.id), { horarios: horariosLibres });
+    }
+
+    toast(`Se borraron ${snap.docs.length} reserva(s), sus chats, y se liberaron ${horariosLiberados} horario(s) ✓`);
     loadAdminStats();
   }catch(e){ console.error(e); toast('No se pudo completar el borrado', true); }
 }
