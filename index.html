@@ -4,6 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Compás — Clases de música cerca de ti</title>
+<meta name="description" content="Encuentra profesores de música egresados de la UNM en Lima. Clases presenciales, virtuales y microclases express, con pago seguro y verificación de perfiles.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Compás — Clases de música cerca de ti">
+<meta property="og:description" content="Encuentra profesores de música egresados de la UNM en Lima. Clases presenciales, virtuales y microclases express, con pago seguro.">
+<meta property="og:url" content="https://compasmusica.github.io/compas-app/">
+<meta property="og:image" content="https://compasmusica.github.io/compas-app/icon-512.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Compás — Clases de música cerca de ti">
+<meta name="twitter:description" content="Encuentra profesores de música egresados de la UNM en Lima.">
+<meta name="twitter:image" content="https://compasmusica.github.io/compas-app/icon-512.png">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -31,6 +41,31 @@
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
+
+  /* Pantalla de bienvenida (splash) — se ve un instante al abrir la app y se
+     desvanece sola hacia la pantalla principal. */
+  #splashScreen{
+    position:fixed; inset:0; z-index:9999;
+    background:var(--ink);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    transition:opacity 0.6s ease;
+  }
+  #splashScreen.fade-out{ opacity:0; pointer-events:none; }
+  #splashScreen img{
+    width:120px; height:120px; border-radius:28px;
+    box-shadow:0 12px 32px rgba(32,36,46,0.14);
+    animation:splash-in 0.7s ease;
+  }
+  #splashScreen .splash-name{
+    font-family:'Fraunces', serif; font-weight:700; font-size:30px;
+    color:var(--text-warm); margin-top:20px; letter-spacing:0.3px;
+  }
+  #splashScreen .splash-tag{
+    font-family:'Work Sans', sans-serif; font-size:13px; letter-spacing:2px;
+    text-transform:uppercase; color:var(--brass); margin-top:6px;
+  }
+  @keyframes splash-in{ from{opacity:0; transform:scale(0.92);} to{opacity:1; transform:scale(1);} }
+
   body{
     background:var(--ink);
     color:var(--text-warm);
@@ -289,11 +324,16 @@
 </style>
 </head>
 <body>
+<div id="splashScreen">
+  <img src="icon-512.png" alt="Compás">
+  <div class="splash-name">Compás</div>
+  <div class="splash-tag">Clases de música</div>
+</div>
 <div id="app">
 
   <div class="topbar">
     <div class="brand">
-      <div class="brand-mark"><img src="icono-192.png" alt="Logo Compás" style="width: 58px; height: 58px; border-radius: 50%; object-fit: cover;"></div>
+      <div class="brand-mark"><img src="icon-192.png" alt="Logo Compás" style="width: 58px; height: 58px; border-radius: 50%; object-fit: cover;"></div>
       <div>
         <h1>Compás</h1>
         <div class="tag mono">Egresados del Conservatorio</div>
@@ -3287,6 +3327,15 @@ populateZoneSelect(document.getElementById('s_zone'));
 populateZoneSelect(document.getElementById('sup_zone'));
 populateInstrumentSelect(document.getElementById('sup_instrument'));
 renderNavLock();
+
+// La pantalla de bienvenida se desvanece sola después de un instante, y se
+// quita del todo del DOM para no dejarla estorbando de fondo.
+setTimeout(()=>{
+  const splash = document.getElementById('splashScreen');
+  if(!splash) return;
+  splash.classList.add('fade-out');
+  setTimeout(()=> splash.remove(), 650);
+}, 1400);
 
 // Refresca "Disponibles ahora" cada minuto: no depende de que llegue un cambio
 // nuevo de Firestore, así el aviso desaparece solo apenas se cumplen las 2 horas.
