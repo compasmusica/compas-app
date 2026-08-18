@@ -144,8 +144,8 @@
   .avatar{width:56px;height:56px;border-radius:12px;flex-shrink:0;background:linear-gradient(135deg,var(--teal),var(--teal-bright));display:flex;align-items:center;justify-content:center;font-family:'Fraunces',serif;font-weight:600;font-size:20px;color:var(--text-warm);background-size:cover;background-position:center;}
   .tcard-body{flex:1;min-width:0;}
   .tcard-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
-  .tcard-name{font-size:15px;font-weight:600;color:var(--text-warm);font-family:'Work Sans';}
-  .tcard-rate{font-family:'IBM Plex Mono';font-size:12px;color:var(--brass-bright);white-space:nowrap;}
+  .tcard-name{font-size:15px;font-weight:600;color:var(--text-warm);font-family:'Work Sans';flex:1;min-width:0;overflow-wrap:break-word;}
+  .tcard-rate{font-family:'IBM Plex Mono';font-size:12px;color:var(--brass-bright);white-space:nowrap;flex-shrink:0;}
   .tcard-meta{font-size:12.5px;color:var(--text-dim);margin-top:3px;}
   .tcard-tags{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
   .tag-pill{font-size:11px;padding:3px 9px;border-radius:999px;background:rgba(201,151,63,0.14);color:var(--brass-bright);}
@@ -214,6 +214,12 @@
   .bloqueo-row{background:rgba(193,84,63,0.08);border:1px solid rgba(193,84,63,0.2);border-radius:10px;padding:9px 14px;margin-bottom:8px;font-size:12.5px;display:flex;justify-content:space-between;align-items:center;}
   .bloqueo-row button{background:none;border:none;color:var(--teal-bright);font-size:12px;font-weight:600;}
   .horarios-resumen{font-size:12px;color:var(--text-dim);background:var(--ink-2);border-radius:10px;padding:10px 14px;margin-bottom:14px;}
+
+  /* Acordeón de fechas disponibles en el modal de solicitud */
+  .fecha-acordeon{margin-bottom:8px;border-radius:10px;overflow:hidden;background:var(--ink-2);border:1px solid rgba(32,36,46,0.06);}
+  .fecha-header{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-warm);}
+  .fecha-chevron{color:var(--text-dim);font-size:11px;}
+  .fecha-body{padding:0 14px 12px;}
 
   /* Compás Al Instante */
   .instante-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(47,110,104,0.16);color:var(--teal-bright);font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;vertical-align:middle;}
@@ -1076,18 +1082,26 @@ window.openSolicitudModal = function(teacherId){
   }
   document.getElementById('reservaModalBtn').style.display = 'block';
 
-  // Modalidades que ofrece este profesor, para clases programadas normales (no instantáneas,
-  // que tienen su propio selector de completa/express más abajo). Si solo ofrece una, se
-  // asigna sola y no le preguntamos nada al alumno.
-  const modalidadesProgramables = (solicitudTeacher.modalidades||[]).filter(id=>id!=='instantaneo' && id!=='microclase');
-  if(modalidadesProgramables.length===1) modalidadElegida = modalidadesProgramables[0];
-  const modalidadHtml = modalidadesProgramables.length > 1
+  // Todas las modalidades que el profesor ofrece, en una sola pregunta — incluye
+  // Microclase Express como una opción más (no aparte). Se descartan ids viejos que
+  // ya no existen (ej. "ambas") en vez de mostrarlos en crudo, mismo criterio que
+  // usamos en las fichas de Explorar.
+  const opcionesClase = (solicitudTeacher.modalidades||[])
+    .filter(id=>id!=='instantaneo')
+    .map(id=>MODALIDADES.find(m=>m.id===id))
+    .filter(Boolean);
+  if(opcionesClase.length===1){
+    modalidadElegida = opcionesClase[0].id;
+    tipoClaseElegida = modalidadElegida==='microclase' ? 'express' : 'completa';
+  } else {
+    tipoClaseElegida = modalidadElegida==='microclase' ? 'express' : 'completa';
+  }
+  const modalidadHtml = opcionesClase.length > 1
     ? `<div class="field"><label>¿Cómo quieres tu clase?</label>
         <div class="dias-chips" style="flex-wrap:wrap;">
-          ${modalidadesProgramables.map(id=>{
-            const m = MODALIDADES.find(x=>x.id===id);
-            return `<span class="tag-pill modo" id="modo_${id}" style="cursor:pointer;" onclick="elegirModalidad('${id}')">${m?m.label:id}</span>`;
-          }).join('')}
+          ${opcionesClase.map(m=>
+            `<span class="tag-pill modo ${modalidadElegida===m.id?'selected-modo':''}" id="modo_${m.id}" style="cursor:pointer;" onclick="elegirModalidad('${m.id}')">${m.label}${m.id==='microclase' ? ` — S/ ${PRECIO_EXPRESS}` : ''}</span>`
+          ).join('')}
         </div>
       </div>`
     : '';
@@ -1095,19 +1109,7 @@ window.openSolicitudModal = function(teacherId){
   // Filtro defensivo por fecha: aunque el profesor no haya abierto "Mis horarios"
   // recientemente para regenerar, un bloque con fecha vencida nunca se muestra al alumno.
   const disponibles = (solicitudTeacher.horarios || []).filter(b=>b.estado==='disponible' && b.fecha && b.fecha>=hoyISO());
-
-  // Microclase Express también se puede agendar con anticipación, no solo en Compás Al
-  // Instante — mismo precio y duración, pero para un horario futuro. Nunca va en paquete
-  // de varias semanas (eso solo aplica a la clase completa).
-  const ofreceMicroclase = (solicitudTeacher.modalidades||[]).includes('microclase');
-  tipoClaseElegida = 'completa';
-  const tipoClaseHtml = (ofreceMicroclase && disponibles.length) ? `
-    <div class="field"><label>¿Qué tipo de clase quieres reservar?</label>
-      <div class="dias-chips" style="flex-wrap:wrap;">
-        <span class="tag-pill modo selected-modo" id="tipo_completa" style="cursor:pointer;" onclick="elegirTipoClase('completa')">Clase completa (1h) — S/ ${solicitudTeacher.rate}</span>
-        <span class="tag-pill modo" id="tipo_express" style="cursor:pointer;" onclick="elegirTipoClase('express')">Microclase Express (15-20min) — S/ ${PRECIO_EXPRESS}</span>
-      </div>
-    </div>` : '';
+  const ofreceMicroclase = opcionesClase.some(m=>m.id==='microclase');
 
   // Campos de domicilio: distrito (limitado a lo que el profesor realmente cubre) +
   // referencia/urbanización (visible desde ya) + dirección exacta (se guarda desde ahora,
@@ -1141,7 +1143,6 @@ window.openSolicitudModal = function(teacherId){
     ${instanteHtml}
     ${modalidadHtml}
     ${domicilioHtml}
-    ${tipoClaseHtml}
     <div id="slots_wrap"></div>
     <div class="field"><label>Mensaje (opcional)</label><textarea id="sol_mensaje" maxlength="140" placeholder="Ej. Soy principiante, busco clases de guitarra"></textarea></div>
   `;
@@ -1155,17 +1156,14 @@ window.openSolicitudModal = function(teacherId){
 window.closeReservaModal = function(){ document.getElementById('reservaModal').classList.remove('active'); }
 window.elegirModalidad = function(id){
   modalidadElegida = id;
+  tipoClaseElegida = id==='microclase' ? 'express' : 'completa';
   document.querySelectorAll('[id^="modo_"]').forEach(el=>el.classList.remove('selected-modo'));
   document.getElementById(`modo_${id}`).classList.add('selected-modo');
   if(id === 'domicilio') mostrarCamposDomicilio();
   else document.getElementById('domicilio_fields').style.display = 'none';
-}
-window.elegirTipoClase = function(tipo){
-  tipoClaseElegida = tipo;
-  document.getElementById('tipo_completa').classList.toggle('selected-modo', tipo==='completa');
-  document.getElementById('tipo_express').classList.toggle('selected-modo', tipo==='express');
-  // Cambia la granularidad de los horarios (1h completa vs franjas de 20min), así
-  // que cualquier horario ya elegido queda invalidado — hay que volver a elegir.
+  // Elegir Microclase cambia la granularidad de los horarios (franjas de 20min
+  // en vez de la hora completa) y desactiva el paquete de varias semanas — hay
+  // que refrescar la lista y descartar cualquier horario ya elegido antes.
   slotSeleccionado = null;
   renderSlotsSection();
 }
@@ -1195,19 +1193,27 @@ function renderSlotsSection(){
   const fechasOrdenadas = Object.keys(porFecha).sort();
   const esExpress = tipoClaseElegida === 'express';
 
-  const pillsHtml = fechasOrdenadas.map(fecha=>`
-    <div style="margin-bottom:10px;">
-      <div class="mono" style="color:var(--text-dim);font-size:11px;margin-bottom:6px;text-transform:capitalize;">${formatFechaLarga(fecha)}</div>
-      ${porFecha[fecha].sort((a,b)=>a.inicio.localeCompare(b.inicio)).map(b=>{
-        if(esExpress){
-          return subFranjasDeUnBloque(b).map(s=>
-            `<span class="slot-pill" onclick="seleccionarSlot(this,'${b.id}','${formatFechaCorta(b.fecha)} · ${s.ini}–${s.fin}','${b.fecha}')">${s.ini}–${s.fin}</span>`
-          ).join('');
-        }
-        return `<span class="slot-pill" onclick="seleccionarSlot(this,'${b.id}','${formatFechaCorta(b.fecha)} · ${b.inicio}–${b.fin}','${b.fecha}')">${b.inicio}–${b.fin}</span>`;
-      }).join('')}
-    </div>
-  `).join('');
+  // Acordeón: solo se listan las fechas (colapsadas), y se despliegan al tocarlas —
+  // así no se ve una pantalla larga con todas las horas de todos los días de una.
+  const fechasHtml = fechasOrdenadas.map((fecha,i)=>{
+    const bloques = porFecha[fecha].sort((a,b)=>a.inicio.localeCompare(b.inicio));
+    const pillsDeEstaFecha = bloques.map(b=>{
+      if(esExpress){
+        return subFranjasDeUnBloque(b).map(s=>
+          `<span class="slot-pill" onclick="seleccionarSlot(this,'${b.id}','${formatFechaCorta(b.fecha)} · ${s.ini}–${s.fin}','${b.fecha}')">${s.ini}–${s.fin}</span>`
+        ).join('');
+      }
+      return `<span class="slot-pill" onclick="seleccionarSlot(this,'${b.id}','${formatFechaCorta(b.fecha)} · ${b.inicio}–${b.fin}','${b.fecha}')">${b.inicio}–${b.fin}</span>`;
+    }).join('');
+    return `
+      <div class="fecha-acordeon">
+        <div class="fecha-header" onclick="toggleFechaAcordeon(${i})">
+          <span style="text-transform:capitalize;">${formatFechaLarga(fecha)}</span>
+          <span class="fecha-chevron" id="chev_${i}">▾</span>
+        </div>
+        <div class="fecha-body" id="fechabody_${i}" style="display:none;">${pillsDeEstaFecha}</div>
+      </div>`;
+  }).join('');
 
   const numClasesHtml = esExpress ? '' : `
     <div class="field" id="numclases_wrap">
@@ -1220,7 +1226,14 @@ function renderSlotsSection(){
       </select>
     </div>`;
 
-  wrap.innerHTML = `<div class="field"><label>Elige un horario disponible${esExpress ? ' (franjas de 20 min)' : ''}</label>${pillsHtml}</div>${numClasesHtml}`;
+  wrap.innerHTML = `<div class="field"><label>Elige un horario disponible${esExpress ? ' (franjas de 20 min)' : ''}</label>${fechasHtml}</div>${numClasesHtml}`;
+}
+window.toggleFechaAcordeon = function(i){
+  const body = document.getElementById(`fechabody_${i}`);
+  const chev = document.getElementById(`chev_${i}`);
+  const abierto = body.style.display !== 'none';
+  body.style.display = abierto ? 'none' : 'block';
+  chev.textContent = abierto ? '▾' : '▴';
 }
 function mostrarCamposDomicilio(){
   document.getElementById('domicilio_fields').style.display = 'block';
@@ -1261,9 +1274,12 @@ window.seleccionarSlot = function(el, slotId, texto, fecha){
 
 window.submitSolicitud = async function(){
  try{
-  const modalidadesProgramables = (solicitudTeacher.modalidades||[]).filter(id=>id!=='instantaneo' && id!=='microclase');
-  if(modalidadesProgramables.length > 1 && !modalidadElegida){ toast('Elige cómo quieres tu clase (modalidad)', true); return; }
-  const modalidadFinal = modalidadElegida || modalidadesProgramables[0] || null;
+  const opcionesClase = (solicitudTeacher.modalidades||[])
+    .filter(id=>id!=='instantaneo')
+    .map(id=>MODALIDADES.find(m=>m.id===id))
+    .filter(Boolean);
+  if(opcionesClase.length > 1 && !modalidadElegida){ toast('Elige cómo quieres tu clase', true); return; }
+  const modalidadFinal = modalidadElegida || (opcionesClase[0] ? opcionesClase[0].id : null);
 
   const disponibles = (solicitudTeacher.horarios || []).filter(b=>b.estado==='disponible' && b.fecha && b.fecha>=hoyISO());
   let horario, numClases = 1;
