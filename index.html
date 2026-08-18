@@ -221,6 +221,12 @@
   .fecha-chevron{color:var(--text-dim);font-size:11px;}
   .fecha-body{padding:0 14px 12px;}
 
+  /* Acordeón de meses, un nivel arriba del de fechas */
+  .mes-acordeon{margin-bottom:10px;border-radius:12px;overflow:hidden;border:1.5px solid rgba(184,134,58,0.25);}
+  .mes-header{display:flex;justify-content:space-between;align-items:center;padding:13px 15px;cursor:pointer;font-size:13.5px;font-weight:700;color:var(--text-warm);background:rgba(184,134,58,0.08);}
+  .mes-chevron{color:var(--brass-bright);font-size:12px;}
+  .mes-body{padding:10px 10px 4px;}
+
   /* Compás Al Instante */
   .instante-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(47,110,104,0.16);color:var(--teal-bright);font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;vertical-align:middle;}
   .instante-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--teal-bright);box-shadow:0 0 0 0 rgba(47,110,104,0.6);animation:pulse-dot 1.6s infinite;}
@@ -1193,25 +1199,44 @@ function renderSlotsSection(){
   const fechasOrdenadas = Object.keys(porFecha).sort();
   const esExpress = tipoClaseElegida === 'express';
 
-  // Acordeón: solo se listan las fechas (colapsadas), y se despliegan al tocarlas —
-  // así no se ve una pantalla larga con todas las horas de todos los días de una.
-  const fechasHtml = fechasOrdenadas.map((fecha,i)=>{
-    const bloques = porFecha[fecha].sort((a,b)=>a.inicio.localeCompare(b.inicio));
-    const pillsDeEstaFecha = bloques.map(b=>{
-      if(esExpress){
-        return subFranjasDeUnBloque(b).map(s=>
-          `<span class="slot-pill" onclick="seleccionarSlot(this,'${b.id}','${formatFechaCorta(b.fecha)} · ${s.ini}–${s.fin}','${b.fecha}')">${s.ini}–${s.fin}</span>`
-        ).join('');
-      }
-      return `<span class="slot-pill" onclick="seleccionarSlot(this,'${b.id}','${formatFechaCorta(b.fecha)} · ${b.inicio}–${b.fin}','${b.fecha}')">${b.inicio}–${b.fin}</span>`;
+  // Doble acordeón: primero por mes, y dentro de cada mes, por fecha — así el
+  // alumno va directo al mes que le interesa sin ver una lista larga de una.
+  const porMes = {};
+  fechasOrdenadas.forEach(fecha=>{
+    const mesKey = fecha.slice(0,7); // "YYYY-MM"
+    (porMes[mesKey] = porMes[mesKey] || []).push(fecha);
+  });
+  const mesesOrdenados = Object.keys(porMes).sort();
+
+  let contadorFecha = 0;
+  const mesesHtml = mesesOrdenados.map((mesKey, mi)=>{
+    const fechasDelMes = porMes[mesKey].map(fecha=>{
+      const i = contadorFecha++;
+      const bloques = porFecha[fecha].sort((a,b)=>a.inicio.localeCompare(b.inicio));
+      const pillsDeEstaFecha = bloques.map(b=>{
+        if(esExpress){
+          return subFranjasDeUnBloque(b).map(s=>
+            `<span class="slot-pill" onclick="seleccionarSlot(this,'${b.id}','${formatFechaCorta(b.fecha)} · ${s.ini}–${s.fin}','${b.fecha}')">${s.ini}–${s.fin}</span>`
+          ).join('');
+        }
+        return `<span class="slot-pill" onclick="seleccionarSlot(this,'${b.id}','${formatFechaCorta(b.fecha)} · ${b.inicio}–${b.fin}','${b.fecha}')">${b.inicio}–${b.fin}</span>`;
+      }).join('');
+      return `
+        <div class="fecha-acordeon">
+          <div class="fecha-header" onclick="toggleFechaAcordeon(${i})">
+            <span style="text-transform:capitalize;">${formatFechaLarga(fecha)}</span>
+            <span class="fecha-chevron" id="chev_${i}">▾</span>
+          </div>
+          <div class="fecha-body" id="fechabody_${i}" style="display:none;">${pillsDeEstaFecha}</div>
+        </div>`;
     }).join('');
     return `
-      <div class="fecha-acordeon">
-        <div class="fecha-header" onclick="toggleFechaAcordeon(${i})">
-          <span style="text-transform:capitalize;">${formatFechaLarga(fecha)}</span>
-          <span class="fecha-chevron" id="chev_${i}">▾</span>
+      <div class="mes-acordeon">
+        <div class="mes-header" onclick="toggleMesAcordeon(${mi})">
+          <span style="text-transform:capitalize;">${formatMesLargo(mesKey)}</span>
+          <span class="mes-chevron" id="mchev_${mi}">▾</span>
         </div>
-        <div class="fecha-body" id="fechabody_${i}" style="display:none;">${pillsDeEstaFecha}</div>
+        <div class="mes-body" id="mesbody_${mi}" style="display:none;">${fechasDelMes}</div>
       </div>`;
   }).join('');
 
@@ -1226,7 +1251,14 @@ function renderSlotsSection(){
       </select>
     </div>`;
 
-  wrap.innerHTML = `<div class="field"><label>Elige un horario disponible${esExpress ? ' (franjas de 20 min)' : ''}</label>${fechasHtml}</div>${numClasesHtml}`;
+  wrap.innerHTML = `<div class="field"><label>Elige un horario disponible${esExpress ? ' (franjas de 20 min)' : ''}</label>${mesesHtml}</div>${numClasesHtml}`;
+}
+window.toggleMesAcordeon = function(mi){
+  const body = document.getElementById(`mesbody_${mi}`);
+  const chev = document.getElementById(`mchev_${mi}`);
+  const abierto = body.style.display !== 'none';
+  body.style.display = abierto ? 'none' : 'block';
+  chev.textContent = abierto ? '▾' : '▴';
 }
 window.toggleFechaAcordeon = function(i){
   const body = document.getElementById(`fechabody_${i}`);
@@ -2417,6 +2449,7 @@ function fechaISO(d){ const y=d.getFullYear(), m=String(d.getMonth()+1).padStart
 function hoyISO(){ return fechaISO(new Date()); }
 function fechaDesdeISO(iso){ const [y,m,d] = iso.split('-').map(Number); return new Date(y, m-1, d); }
 function formatFechaLarga(iso){ return fechaDesdeISO(iso).toLocaleDateString('es-PE',{weekday:'long', day:'numeric', month:'long'}); }
+function formatMesLargo(mesKey){ const [y,m] = mesKey.split('-').map(Number); return new Date(y, m-1, 1).toLocaleDateString('es-PE',{month:'long', year:'numeric'}); }
 function formatFechaCorta(iso){ return fechaDesdeISO(iso).toLocaleDateString('es-PE',{day:'numeric', month:'short'}); }
 function sumarDiasISO(iso, dias){ const d = fechaDesdeISO(iso); d.setDate(d.getDate()+dias); return fechaISO(d); }
 
