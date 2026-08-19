@@ -1474,10 +1474,32 @@ window.confirmarDisponibilidad = async function(reservaId){
     // automáticamente para que no se lo pidan dos alumnos a la vez.
     if(r && r.slotId){
       const profSnap = await getDoc(doc(db,"profesores",r.profesorId));
-      const horarios = (profSnap.data().horarios || []).map(b =>
-        b.id === r.slotId ? { ...b, estado: 'ocupado' } : b
-      );
-      await updateDoc(doc(db,"profesores",r.profesorId), { horarios });
+      let horarios = (profSnap.data().horarios || []);
+      let compromisosPaquete = profSnap.data().compromisosPaquete || [];
+
+      if(r.esPaquete && r.numeroClases > 1){
+        // Paquete de varias semanas: el mismo día/hora se repite cada semana.
+        // Bloqueamos ya mismo los bloques que existan dentro de las 4 semanas
+        // generadas, y guardamos un "compromiso" para que las semanas que
+        // todavía no existen (ej. semana 6 de un paquete de 8) nazcan ya
+        // ocupadas apenas se generen, en vez de ofrecerse como disponibles.
+        const [fechaBase, horaBase] = r.slotId.split('_');
+        const diaSemana = DIAS_SEMANA[(fechaDesdeISO(fechaBase).getDay()+6)%7];
+        const fechaFin = sumarDiasISO(fechaBase, (r.numeroClases-1)*7);
+        const fechasDelPaquete = new Set(
+          Array.from({length:r.numeroClases}, (_,i)=> sumarDiasISO(fechaBase, i*7))
+        );
+        horarios = horarios.map(b =>
+          (fechasDelPaquete.has(b.fecha) && b.inicio===horaBase) ? { ...b, estado:'ocupado' } : b
+        );
+        compromisosPaquete = [
+          ...compromisosPaquete.filter(c=>c.reservaId !== reservaId), // evita duplicar si se confirma dos veces
+          { reservaId, dia: diaSemana, inicio: horaBase, fechaFin }
+        ];
+      } else {
+        horarios = horarios.map(b => b.id === r.slotId ? { ...b, estado: 'ocupado' } : b);
+      }
+      await updateDoc(doc(db,"profesores",r.profesorId), { horarios, compromisosPaquete });
     }
     // El alumno estaba esperando esto — sin avisarle, no tiene forma de saber
     // que ya puede pagar salvo que entre a revisar por curiosidad.
@@ -1590,6 +1612,13 @@ window.marcarClaseDelPaquete = async function(reservaId, numero){
       clases,
       estado: todasListas ? 'completada' : 'pago_confirmado'
     });
+    // El paquete ya terminó — quitamos su compromiso para que esas semanas
+    // vuelvan a quedar libres para nuevos alumnos hacia adelante.
+    if(todasListas && r.profesorId){
+      const profSnap = await getDoc(doc(db,"profesores",r.profesorId));
+      const compromisosPaquete = (profSnap.data().compromisosPaquete || []).filter(c=>c.reservaId !== reservaId);
+      await updateDoc(doc(db,"profesores",r.profesorId), { compromisosPaquete });
+    }
     toast(todasListas ? '¡Paquete completo! 🎵' : 'Clase marcada como hecha');
     loadMyReservas();
   }catch(e){ console.error(e); toast('No se pudo marcar', true); }
@@ -2449,7 +2478,11 @@ function fechaISO(d){ const y=d.getFullYear(), m=String(d.getMonth()+1).padStart
 function hoyISO(){ return fechaISO(new Date()); }
 function fechaDesdeISO(iso){ const [y,m,d] = iso.split('-').map(Number); return new Date(y, m-1, d); }
 function formatFechaLarga(iso){ return fechaDesdeISO(iso).toLocaleDateString('es-PE',{weekday:'long', day:'numeric', month:'long'}); }
-function formatMesLargo(mesKey){ const [y,m] = mesKey.split('-').map(Number); return new Date(y, m-1, 1).toLocaleDateString('es-PE',{month:'long', year:'numeric'}); }
+function formatMesLargo(mesKey){
+  const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const [y,m] = mesKey.split('-').map(Number);
+  return `${meses[m-1]} ${y}`;
+}
 function formatFechaCorta(iso){ return fechaDesdeISO(iso).toLocaleDateString('es-PE',{day:'numeric', month:'short'}); }
 function sumarDiasISO(iso, dias){ const d = fechaDesdeISO(iso); d.setDate(d.getDate()+dias); return fechaISO(d); }
 
@@ -2458,7 +2491,7 @@ function sumarDiasISO(iso, dias){ const d = fechaDesdeISO(iso); d.setDate(d.getD
    existían en esa misma fecha+hora, y descarta automáticamente todo lo que ya pasó de fecha
    — así es como se "liberan solas" las clases antiguas, sin que el profesor tenga que entrar
    a hacerlo a mano. */
-function generarHorariosDesdePatron(patron, existentes){
+function generarHorariosDesdePatron(patron, existentes, compromisos){
   const existentesPorClave = {};
   (existentes||[]).forEach(b=>{ if(b.fecha) existentesPorClave[`${b.fecha}_${b.inicio}`] = b; });
 
@@ -2477,7 +2510,14 @@ function generarHorariosDesdePatron(patron, existentes){
         const siguiente = Math.min(cursor+60, finMin);
         const inicio = minutosAHora(cursor), fin = minutosAHora(siguiente);
         const previo = existentesPorClave[`${fecha}_${inicio}`];
-        nuevos.push({ id: `${fecha}_${inicio}`, fecha, dia: diaSemana, inicio, fin, estado: previo ? previo.estado : 'disponible' });
+        let estado = previo ? previo.estado : 'disponible';
+        // Si este día/hora está comprometido por un paquete de varias semanas (ej.
+        // semana 6 de un paquete de 8, que todavía no existía como bloque), nace
+        // ocupado de una vez — así nunca se le puede ofrecer a otro alumno.
+        if(estado === 'disponible' && (compromisos||[]).some(c => c.dia===diaSemana && c.inicio===inicio && fecha<=c.fechaFin)){
+          estado = 'ocupado';
+        }
+        nuevos.push({ id: `${fecha}_${inicio}`, fecha, dia: diaSemana, inicio, fin, estado });
         cursor = siguiente;
       }
     });
@@ -2490,7 +2530,7 @@ window.openHorariosModal = function(){
   horarioPatronDraft = (currentEditingTeacher.horarioPatron || []).map(p=>({...p, dias:[...p.dias]}));
   // Si el profesor todavía tiene el formato antiguo (sin patrón, bloques sin fecha), no hay
   // nada que migrar automáticamente — arrancamos en blanco y le pedimos que arme su horario de nuevo.
-  horariosDraft = generarHorariosDesdePatron(horarioPatronDraft, currentEditingTeacher.horarios || []);
+  horariosDraft = generarHorariosDesdePatron(horarioPatronDraft, currentEditingTeacher.horarios || [], currentEditingTeacher.compromisosPaquete || []);
   pausaDraft = !!currentEditingTeacher.pausado;
   diasSeleccionados = [];
   document.getElementById('pausaMensaje').value = currentEditingTeacher.pausaMensaje || '';
@@ -2542,7 +2582,7 @@ window.agregarPatron = function(){
   if(inicio >= fin){ toast('La hora de fin debe ser después del inicio', true); return; }
 
   horarioPatronDraft.push({ id: `${Date.now()}`, dias: [...diasSeleccionados], inicio, fin });
-  horariosDraft = generarHorariosDesdePatron(horarioPatronDraft, horariosDraft);
+  horariosDraft = generarHorariosDesdePatron(horarioPatronDraft, horariosDraft, currentEditingTeacher?.compromisosPaquete || []);
   diasSeleccionados = [];
   document.getElementById('horario_inicio').value = '';
   document.getElementById('horario_fin').value = '';
@@ -2554,7 +2594,7 @@ window.agregarPatron = function(){
 }
 window.eliminarPatron = function(i){
   horarioPatronDraft.splice(i,1);
-  horariosDraft = generarHorariosDesdePatron(horarioPatronDraft, horariosDraft);
+  horariosDraft = generarHorariosDesdePatron(horarioPatronDraft, horariosDraft, currentEditingTeacher?.compromisosPaquete || []);
   renderPatronList();
   renderBloqueosList();
   renderHorariosResumen();
@@ -2606,7 +2646,7 @@ window.guardarHorarios = async function(){
   try{
     const pausaMensaje = document.getElementById('pausaMensaje').value.trim();
     // Regeneramos una última vez antes de guardar, por si pasó tiempo desde que se abrió el modal.
-    horariosDraft = generarHorariosDesdePatron(horarioPatronDraft, horariosDraft);
+    horariosDraft = generarHorariosDesdePatron(horarioPatronDraft, horariosDraft, currentEditingTeacher?.compromisosPaquete || []);
     await updateDoc(doc(db,"profesores",currentUser.uid), {
       horarioPatron: horarioPatronDraft,
       horarios: horariosDraft,
@@ -3005,6 +3045,7 @@ window.borrarTodasLasReservas = async function(){
     // Liberamos los horarios que hubieran quedado "ocupado" por esas reservas ya
     // borradas — si no, se quedan marcados como ocupados para siempre, sin ninguna
     // reserva real detrás (eran huérfanos, y ningún alumno los podía volver a pedir).
+    // También borramos los compromisos de paquete huérfanos, por la misma razón.
     let horariosLiberados = 0;
     const profSnap = await getDocs(collection(db,"profesores"));
     for(const p of profSnap.docs){
@@ -3014,7 +3055,8 @@ window.borrarTodasLasReservas = async function(){
         if(b.estado === 'ocupado'){ cambio = true; horariosLiberados++; return {...b, estado:'disponible'}; }
         return b; // "bloqueado" (bloqueos puntuales del profesor) no se toca, eso es aparte
       });
-      if(cambio) await updateDoc(doc(db,"profesores",p.id), { horarios: horariosLibres });
+      const teniaCompromisos = (p.data().compromisosPaquete || []).length > 0;
+      if(cambio || teniaCompromisos) await updateDoc(doc(db,"profesores",p.id), { horarios: horariosLibres, compromisosPaquete: [] });
     }
 
     toast(`Se borraron ${snap.docs.length} reserva(s), sus chats, y se liberaron ${horariosLiberados} horario(s) ✓`);
@@ -3294,6 +3336,10 @@ function generarTicketPDF(r, prof){
     : (prof.modalidad || '-');
   campo('Modalidad', modalidadesTexto);
   campo('Horario', r.horario);
+  if(r.esPaquete && r.clases && r.clases.length){
+    campo('Tipo de reserva', `Paquete de ${r.numeroClases} clases (1 por semana)`);
+    r.clases.forEach(c => campo(`  Clase ${c.numero}`, c.fecha ? `${c.fecha}${c.estado==='completada' ? ' — ya dictada' : ''}` : '-'));
+  }
   if(r.modalidad){
     const modalidadTxt = MODALIDADES.find(m=>m.id===r.modalidad)?.label || r.modalidad;
     campo('Modalidad de esta clase', modalidadTxt);
