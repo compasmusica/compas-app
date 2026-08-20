@@ -169,6 +169,7 @@
 
   /* Sello dorado de Verificado UNM, más visible que un simple ícono */
   .unm-seal{display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,#d9a94a,#b8842e);color:#2a1c05;font-size:10.5px;font-weight:700;padding:2px 8px 2px 6px;border-radius:20px;vertical-align:middle;box-shadow:0 1px 2px rgba(184,132,46,0.4);letter-spacing:0.2px;}
+  .unm-seal.alumno{background:linear-gradient(135deg,#5a7a8c,#3d5c6d);color:#f2f6f8;box-shadow:0 1px 2px rgba(61,92,109,0.4);}
   .unm-seal .seal-icon{font-size:11px;}
 
   /* Aviso con instrucciones para activar notificaciones ntfy */
@@ -660,9 +661,17 @@
   <div class="modal-overlay" id="verificacionModal">
     <div class="modal">
       <h3>Verificarme con la UNM</h3>
-      <div class="hint">Sube una foto de tu carné o diploma de la Universidad Nacional de Música. El administrador lo revisa y te da la insignia "Verificado UNM" 🎓 en tu perfil.</div>
-      <label class="photo-upload" for="verificacion_foto" style="aspect-ratio:1.6;">
-        <span class="ic">🎓</span><span id="verificacion_label">Toca para subir la foto</span>
+      <div class="hint">También pueden verificarse alumnos de los últimos ciclos que ya estén dando clases, no solo egresados.</div>
+      <div class="field">
+        <label>¿Cuál es tu situación?</label>
+        <div class="dias-chips" style="flex-wrap:wrap;">
+          <span class="tag-pill modo" id="tipounm_egresado" style="cursor:pointer;" onclick="elegirTipoVerificacionUNM('egresado')">🥇 Egresado UNM</span>
+          <span class="tag-pill modo" id="tipounm_alumno" style="cursor:pointer;" onclick="elegirTipoVerificacionUNM('alumno')">🎓 Alumno UNM (últimos ciclos)</span>
+        </div>
+      </div>
+      <div class="hint" id="verificacion_hint_alumno" style="display:none;margin-top:-4px;">Cuenta en tu biografía en qué ciclo estás (ej. "Alumno de 8vo ciclo UNM") — se ve en tu perfil y ayuda a que los padres de familia sepan tu situación exacta.</div>
+      <label class="photo-upload" for="verificacion_foto" style="aspect-ratio:1.6;margin-top:12px;">
+        <span class="ic">🎓</span><span id="verificacion_label">Toca para subir la foto de tu carné o constancia</span>
       </label>
       <input type="file" id="verificacion_foto" accept="image/*" style="display:none">
       <button class="btn btn-primary btn-block" style="margin-top:18px;" onclick="enviarVerificacion()">Enviar para revisión</button>
@@ -737,6 +746,15 @@ let pendingGoogleUser = null;
 
 const CREDITOS_INICIALES = 20;
 const COSTO_PUBLICAR_SUPLENCIA = 10;
+/* Sello UNM: dorado y "Egresado" si terminó la carrera, o en tono distinto y
+   "Alumno" si todavía está estudiando (últimos ciclos) — mismo prestigio de estar
+   verificado por la UNM, pero sin igualar el peso de haber egresado. */
+function unmSealHtml(t){
+  if(t.verificadoUNM !== true) return '';
+  const esAlumno = t.tipoVerificacionUNM === 'alumno';
+  return ` <span class="unm-seal ${esAlumno ? 'alumno' : ''}" title="${esAlumno ? 'Alumno UNM (últimos ciclos)' : 'Egresado UNM'}"><span class="seal-icon">${esAlumno ? '🎓' : '🥇'}</span>${esAlumno ? 'Alumno UNM' : 'Egresado UNM'}</span>`;
+}
+
 const COMISION_PORCENTAJE = 0.10; // 10% para la app, 90% para el profesor
 
 /* Precio de la Microclase Express: fijo para toda la plataforma, pero se guarda en
@@ -1017,7 +1035,7 @@ function renderTeacherList(){
       <div class="avatar" style="${t.photo ? `background-image:url(${t.photo})`:''}">${t.photo?'':initials(t.name)}</div>
       <div class="tcard-body">
         <div class="tcard-top">
-          <div class="tcard-name">${t.name}${verificado ? ' <span class="verified-badge" title="Verificado: 3+ clases en Compás">✓</span>' : ''}${t.verificadoUNM===true ? ' <span class="unm-seal" title="Verificado UNM"><span class="seal-icon">🥇</span>UNM</span>' : ''}${instanteHtml}</div>
+          <div class="tcard-name">${t.name}${verificado ? ' <span class="verified-badge" title="Verificado: 3+ clases en Compás">✓</span>' : ''}${unmSealHtml(t)}${instanteHtml}</div>
           <div class="tcard-rate">S/ ${t.rate}/h</div>
         </div>
         ${t.especialidad ? `<div class="tcard-especialidad">${t.especialidad}</div>` : ''}
@@ -2337,7 +2355,7 @@ function renderMyProfilePreview(){
     estadoHtml = `<div class="pausa-banner" style="background:rgba(107,107,114,0.14);border-color:rgba(107,107,114,0.3);color:var(--text-dim);">Tu perfil está pausado. No aparece en "Explorar" hasta que lo reactives.</div>`;
   }
 
-  const unmBadge = t.verificadoUNM === true ? ' <span class="unm-seal" title="Verificado UNM"><span class="seal-icon">🥇</span>UNM</span>' : '';
+  const unmBadge = unmSealHtml(t);
 
   wrap.innerHTML = `<div class="mono" style="color:var(--text-dim);margin-bottom:10px;">Tu perfil</div>
     ${estadoHtml}
@@ -2369,7 +2387,7 @@ function renderMyProfilePreview(){
     </div>` : ''}
     <button class="btn btn-teal btn-block" style="margin-top:10px;" onclick="openHorariosModal()">Mis horarios</button>
     <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="openZonasModal()">Zonas adicionales</button>
-    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="openVerificacionModal()">${t.verificadoUNM===true ? 'Verificación UNM ✓' : (t.verificacionUNMPendiente===true ? 'Verificación en revisión…' : 'Verificarme con la UNM')}</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="openVerificacionModal()">${t.verificadoUNM===true ? (t.tipoVerificacionUNM==='alumno' ? 'Alumno UNM verificado ✓' : 'Egresado UNM verificado ✓') : (t.verificacionUNMPendiente===true ? 'Verificación en revisión…' : 'Verificarme con la UNM')}</button>
     <div class="ntfy-info" style="margin-top:16px;">
       <div class="ntfy-title">🔔 Recibe avisos al instante</div>
       <div class="ntfy-step"><b>Paso 1:</b> Descarga la app <b>ntfy</b> (gratis):</div>
@@ -2408,11 +2426,16 @@ window.darDeBaja = async function(){
 /* ============ VERIFICACIÓN UNM (carné/diploma) ============ */
 let verificacionFotoData = null;
 
+let tipoVerificacionUNM = null;
 window.openVerificacionModal = function(){
   if(!currentEditingTeacher){ toast('Primero publica tu perfil de profesor', true); return; }
   if(currentEditingTeacher.verificadoUNM === true){ toast('Ya tienes la insignia Verificado UNM ✓', false); return; }
   verificacionFotoData = null;
-  document.getElementById('verificacion_label').textContent = 'Toca para subir la foto';
+  tipoVerificacionUNM = null;
+  document.getElementById('tipounm_egresado').classList.remove('selected-modo');
+  document.getElementById('tipounm_alumno').classList.remove('selected-modo');
+  document.getElementById('verificacion_hint_alumno').style.display = 'none';
+  document.getElementById('verificacion_label').textContent = 'Toca para subir la foto de tu carné o constancia';
   document.getElementById('verificacion_foto').value = '';
   document.getElementById('verificacion_foto').addEventListener('change', function(e){
     const file = e.target.files[0];
@@ -2425,17 +2448,26 @@ window.openVerificacionModal = function(){
   });
   document.getElementById('verificacionModal').classList.add('active');
 }
+window.elegirTipoVerificacionUNM = function(tipo){
+  tipoVerificacionUNM = tipo;
+  document.getElementById('tipounm_egresado').classList.toggle('selected-modo', tipo==='egresado');
+  document.getElementById('tipounm_alumno').classList.toggle('selected-modo', tipo==='alumno');
+  document.getElementById('verificacion_hint_alumno').style.display = tipo==='alumno' ? 'block' : 'none';
+}
 window.closeVerificacionModal = function(){ document.getElementById('verificacionModal').classList.remove('active'); }
 
 window.enviarVerificacion = async function(){
-  if(!verificacionFotoData){ toast('Sube una foto de tu carné o diploma primero', true); return; }
+  if(!tipoVerificacionUNM){ toast('Elige si eres egresado o alumno de últimos ciclos', true); return; }
+  if(!verificacionFotoData){ toast('Sube una foto de tu carné o constancia primero', true); return; }
   try{
     await updateDoc(doc(db,"profesores",currentUser.uid), {
       carnetUNM: verificacionFotoData,
+      tipoVerificacionUNM,
       verificacionUNMPendiente: true,
       verificadoUNM: false
     });
     currentEditingTeacher.verificacionUNMPendiente = true;
+    currentEditingTeacher.tipoVerificacionUNM = tipoVerificacionUNM;
     closeVerificacionModal();
     renderMyProfilePreview();
     toast('Enviado. Te avisamos cuando quede verificado ✓');
@@ -3207,7 +3239,7 @@ window.loadAdminStats = async function(){
       ${pendientesUNM.length===0 ? '<div class="empty-state"><p>No hay verificaciones pendientes.</p></div>' :
         pendientesUNM.map(t=>`
           <div class="sup-card">
-            <div class="sup-top"><span class="sup-title">${t.name}</span></div>
+            <div class="sup-top"><span class="sup-title">${t.name}</span><span class="tag-pill ${t.tipoVerificacionUNM==='alumno'?'modo':''}" style="${t.tipoVerificacionUNM!=='alumno'?'background:rgba(184,134,58,0.18);color:var(--brass-bright);':''}">${t.tipoVerificacionUNM==='alumno' ? '🎓 Alumno UNM' : '🥇 Egresado UNM'}</span></div>
             ${t.carnetUNM ? `<img src="${t.carnetUNM}" style="width:100%;border-radius:8px;margin-top:8px;">` : ''}
             <div class="cta-row" style="margin-top:8px;">
               <button class="btn btn-teal btn-sm" onclick="aprobarVerificacionUNM('${t.id}')">Aprobar</button>
@@ -3292,7 +3324,8 @@ window.aprobarVerificacionUNM = async function(profesorId){
     await updateDoc(doc(db,"profesores",profesorId), { verificadoUNM: true, verificacionUNMPendiente: false });
     getDoc(doc(db,"profesores",profesorId)).then(snap=>{
       const topic = snap.exists() ? snap.data().ntfyTopic : null;
-      if(topic) enviarNotificacion(topic, 'Verificación UNM aprobada', 'Ya tienes el sello dorado UNM en tu perfil.');
+      const esAlumno = snap.exists() && snap.data().tipoVerificacionUNM === 'alumno';
+      if(topic) enviarNotificacion(topic, 'Verificación UNM aprobada', esAlumno ? 'Ya tienes el sello "Alumno UNM" en tu perfil.' : 'Ya tienes el sello dorado "Egresado UNM" en tu perfil.');
     });
     toast('Verificación UNM aprobada ✓');
     loadAdminStats();
