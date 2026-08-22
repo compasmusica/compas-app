@@ -698,7 +698,8 @@
         <button class="auth-tab" id="faqTabAlumnos" onclick="setFaqTab('alumnos')">Para alumnos</button>
       </div>
       <div id="faqContent"></div>
-      <button class="btn btn-ghost btn-block" style="margin-top:16px;" onclick="closeFaqModal()">Cerrar</button>
+      <a href="guia-profesores.html" target="_blank" class="btn btn-teal btn-block" style="margin-top:16px;text-decoration:none;text-align:center;">📖 Ver la guía completa</a>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeFaqModal()">Cerrar</button>
     </div>
   </div>
 
@@ -2500,15 +2501,23 @@ window.closeSoporteModal = function(){ document.getElementById('soporteModal').c
 
 /* ============ PREGUNTAS FRECUENTES ============ */
 const FAQ_PROFESORES = [
-  {q:'¿Cómo verifican mi perfil de la UNM?', a:'Revisamos tu perfil manualmente antes de publicarlo. Si además subes tu carné o diploma en "Verificarme con la UNM", te damos la insignia 🎓 Verificado UNM.'},
+  {q:'¿Cómo verifican mi perfil de la UNM?', a:'Revisamos tu perfil manualmente antes de publicarlo. Si además subes tu carné o constancia en "Verificarme con la UNM", te damos el sello 🥇 Egresado UNM o 🎓 Alumno UNM (últimos ciclos), según tu situación.'},
   {q:'¿Cómo me contactan los alumnos?', a:'Siempre a través del chat interno de Compás, nunca por WhatsApp directo — así protegemos tu privacidad y garantizamos tu pago.'},
-  {q:'¿Tiene costo estar en la plataforma?', a:'No, publicar tu perfil es gratis. Compás cobra una comisión del 10% solo cuando confirmas una clase pagada.'},
-  {q:'¿Cómo dicto clases virtuales?', a:'Comparte tu link de Google Meet directo en el chat de la reserva — Compás lo convierte automáticamente en un botón para unirse.'}
+  {q:'¿Tiene costo estar en la plataforma?', a:'No, publicar tu perfil es gratis. Compás cobra una comisión del 10% solo sobre el precio de la clase — la movilidad (si das clases a domicilio) es 100% tuya, nunca se le cobra comisión.'},
+  {q:'¿Cómo dicto clases virtuales?', a:'Comparte tu link de Google Meet directo en el chat de la reserva — Compás lo convierte automáticamente en un botón para unirse.'},
+  {q:'¿Cómo defino mis horarios disponibles?', a:'En "Tu perfil" → "Mis horarios", arma tu patrón semanal una sola vez (ej. Martes y Jueves de 3 a 7pm). El sistema genera solo tus próximas 4 semanas de disponibilidad y las va renovando automáticamente.'},
+  {q:'¿Qué es Compás Al Instante?', a:'Un interruptor en "Tu perfil" para avisar que tienes un hueco libre ahora mismo. Apareces destacado en Explorar por 2 horas, y cualquier alumno te puede pedir una clase que empieza ya.'},
+  {q:'¿Cómo cobro la movilidad si doy clases a domicilio?', a:'En "Zonas adicionales" defines qué distritos cubres además del tuyo y cuánto cobras de pasaje en cada uno. Se suma solo al total cuando un alumno de esa zona te reserva, y es 100% para ti.'},
+  {q:'¿Por qué no puedo chatear con el alumno todavía?', a:'El chat se desbloquea recién cuando el administrador confirma el pago. Es a propósito: protege tu tiempo (nadie te hace perder el tiempo sin comprometerse) y asegura que el pago siempre pase por la plataforma.'}
 ];
 const FAQ_ALUMNOS = [
   {q:'¿Por qué los profesores son garantizados?', a:'Cada profesor pasa por una revisión manual antes de aparecer en Explorar, y puedes ver su calificación de clases anteriores con otros alumnos.'},
-  {q:'¿Cómo coordino y tomo una clase?', a:'Solicitas un horario disponible, el profesor lo confirma, pagas dentro de la app y listo — te llega el contacto por chat y ahí coordinan todo.'},
-  {q:'¿Qué pasa si el profesor no se conecta?', a:'Escríbele por el chat interno. Si no responde, contáctanos por Soporte / Ayuda y te ayudamos a resolverlo.'}
+  {q:'¿Cómo coordino y tomo una clase?', a:'Solicitas un horario disponible, el profesor lo confirma, pagas dentro de la app y listo — se desbloquea el chat con tu profesor y ahí coordinan los últimos detalles.'},
+  {q:'¿Qué pasa si el profesor no se conecta?', a:'Escríbele por el chat interno. Si no responde, contáctanos por Soporte / Ayuda y te ayudamos a resolverlo.'},
+  {q:'¿Qué es la Microclase Express?', a:'Una clase corta de 15-20 minutos, ideal si quieres resolver una duda puntual sin comprometerte a una hora completa. Algunos profesores la ofrecen tanto al instante como programada con anticipación.'},
+  {q:'¿Puedo tomar varias semanas seguidas con el mismo profesor?', a:'Sí, al reservar una clase completa puedes elegir un paquete de 4, 8 o 12 semanas seguidas, mismo día y hora cada semana. (La Microclase Express siempre es de una sola vez, no admite paquete.)'},
+  {q:'¿Cuándo puedo hablar con mi profesor por chat?', a:'Recién cuando confirmamos tu pago. Antes de eso el chat está bloqueado — así protegemos que todo, incluido tu pago, quede siempre dentro de la plataforma.'},
+  {q:'¿Por qué me piden mi distrito y dirección exacta?', a:'Solo para clases a domicilio: tu distrito sirve para calcular el costo de movilidad del profesor, y tu dirección exacta recién se le muestra al profesor cuando tu pago ya está confirmado.'}
 ];
 
 window.openFaqModal = function(){
