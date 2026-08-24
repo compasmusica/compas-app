@@ -3234,9 +3234,23 @@ window.loadAdminStats = async function(){
       ${pendientesAprobar.length===0 ? '<div class="empty-state"><p>No hay nadie esperando aprobación.</p></div>' :
         pendientesAprobar.map(t=>`
           <div class="sup-card">
-            <div class="sup-top"><span class="sup-title">${t.name}</span><span class="sup-monto">S/ ${t.rate}/h</span></div>
-            <div class="sup-meta">${(t.instruments||[]).join(' · ')} · ${t.zone}</div>
-            ${t.bio ? `<div class="sup-msg">${t.bio}</div>` : ''}
+            <div class="teacher-card" style="background:transparent;border:none;padding:0;margin-bottom:10px;">
+              <div class="avatar" style="${t.photo ? `background-image:url(${t.photo})`:''}">${t.photo?'':initials(t.name)}</div>
+              <div class="tcard-body">
+                <div class="tcard-top"><div class="tcard-name">${t.name}</div><div class="tcard-rate">S/ ${t.rate}/h</div></div>
+                ${t.especialidad ? `<div class="tcard-especialidad">${t.especialidad}</div>` : ''}
+                <div class="tcard-meta">${(t.instruments||[]).filter(i=>i!==t.especialidad).join(' · ')}</div>
+                ${(t.anosExperiencia || t.formacion) ? `<div class="tcard-credentials">
+                  ${t.anosExperiencia ? `<span class="cred-item">🎼 ${t.anosExperiencia} años de experiencia</span>` : ''}
+                  ${t.formacion ? `<span class="cred-item">🎓 ${t.formacion}</span>` : ''}
+                </div>` : ''}
+                ${t.bio ? `<div class="tcard-bio">${t.bio}</div>` : ''}
+                ${t.videoUrl ? `<a href="${t.videoUrl}" target="_blank" rel="noopener" class="video-link">▶ Ver video</a>` : ''}
+                <div class="tcard-tags"><span class="tag-pill zone">${t.zone}</span>${modalidadPillsHtml(t)}</div>
+              </div>
+            </div>
+            <div class="sup-meta">📞 ${t.phone || 'Sin teléfono registrado'}</div>
+            ${(t.zonasAdicionales && t.zonasAdicionales.length) ? `<div class="sup-meta">📍 Zonas adicionales: ${t.zonasAdicionales.map(z=>`${z.zona}${z.costo?` (+S/${z.costo})`:''}`).join(', ')}</div>` : ''}
             <div class="cta-row" style="margin-top:8px;">
               <button class="btn btn-teal btn-sm" onclick="aprobarProfesor('${t.id}')">Aprobar</button>
               <button class="btn btn-ghost btn-sm" onclick="rechazarProfesor('${t.id}')">Rechazar</button>
