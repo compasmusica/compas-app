@@ -142,6 +142,27 @@
 
   footer{padding:30px 0; text-align:center; font-size:12px; color:var(--text-dim);}
 
+  /* ---------- SEGURIDAD ---------- */
+  .seguridad-box{
+    background:var(--ink-2); border:1.5px solid var(--teal); border-radius:16px;
+    padding:30px 26px; margin-top:8px;
+  }
+  .seguridad-box h3{font-size:19px; color:var(--teal); margin-bottom:6px;}
+  .seguridad-box > p.lead-sm{font-size:14px; color:var(--text-dim); margin:0 0 20px;}
+  .regla{display:flex; gap:14px; padding:13px 0; border-top:1px solid var(--paper-dim);}
+  .regla:first-of-type{border-top:none;}
+  .regla-num{
+    width:26px; height:26px; border-radius:50%; background:var(--teal); color:#F4F1EA;
+    font-family:'IBM Plex Mono'; font-size:12.5px; font-weight:600; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .regla p{margin:0; font-size:14px; color:var(--text-warm); line-height:1.5;}
+
+  /* ---------- COMPARTE ---------- */
+  .comparte-wrap{display:flex; flex-direction:column; align-items:center; text-align:center; gap:20px;}
+  .comparte-wrap img{width:100%; max-width:280px; border-radius:16px; box-shadow:var(--shadow);}
+  .comparte-wrap p.lead-sm{font-size:14.5px; color:var(--text-dim); max-width:480px; margin:0;}
+
   @media(max-width:480px){
     .hero h1{font-size:29px;}
     .hero{padding:44px 0 48px;}
@@ -241,6 +262,34 @@
     </div>
   </section>
 
+  <section>
+    <div class="wrap">
+      <div class="section-eyebrow">Lo más importante</div>
+      <h2>Protege tus ingresos</h2>
+      <p class="intro">Una sola consigna que hay que respetar siempre: toda la comunicación se maneja por el chat interno de Compás.</p>
+      <div class="seguridad-box">
+        <h3>Por tu seguridad, todo por el chat</h3>
+        <p class="lead-sm">No es una recomendación, es la regla que protege tu dinero — síguela siempre.</p>
+        <div class="regla">
+          <div class="regla-num">1</div>
+          <p>Nunca compartas tu WhatsApp, Yape o Plin fuera de la plataforma. El chat interno bloquea automáticamente cualquier intento de hacerlo, precisamente para cuidarte.</p>
+        </div>
+        <div class="regla">
+          <div class="regla-num">2</div>
+          <p>El pago siempre pasa primero por Compás. El contacto directo con tu alumno recién se libera cuando el administrador confirma que el pago ya está hecho.</p>
+        </div>
+        <div class="regla">
+          <div class="regla-num">3</div>
+          <p>Coordina horarios, links de clase virtual y cualquier cambio dentro del chat de la reserva — así queda un registro claro si algo se malinterpreta.</p>
+        </div>
+        <div class="regla">
+          <div class="regla-num">4</div>
+          <p>Si un alumno insiste en coordinar por fuera de la app, es una señal de alerta. Repórtalo — esa regla también te protege a ti de solicitudes falsas o pagos incumplidos.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section id="preguntas">
     <div class="wrap">
       <div class="section-eyebrow">Todo lo demás</div>
@@ -309,6 +358,19 @@
           <div class="faq-q" onclick="toggleFaq(this)"><span>¿Qué pasa si no puedo dar una clase que ya confirmé?</span><span class="chev">▾</span></div>
           <div class="faq-a"><p>Publica una suplencia — puedes elegir la clase confirmada y el sistema rellena los datos por ti (instrumento, zona, monto, horario). Es visible para todo el gremio, sin revelar el nombre ni la dirección del alumno; la coordinación final con el colega que se postule es directa entre ustedes.</p></div>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="alt">
+    <div class="wrap">
+      <div class="section-eyebrow" style="text-align:center;">Comunidad</div>
+      <h2 style="text-align:center;">Ayúdanos a crecer el gremio</h2>
+      <p class="intro" style="text-align:center; margin-left:auto; margin-right:auto;">Mientras más profesores nos vean, más alumnos llegan a todos. Comparte que eres parte de Compás — así tus amigos, familiares y alumnos te encuentran directo en la app.</p>
+      <div class="comparte-wrap">
+        <img src="badge-comparte-compas.png" alt="Soy parte del gremio Compás">
+        <p class="lead-sm">Descárgala y compártela en tu Instagram, WhatsApp Estado o Facebook. Cada publicación es una puerta más para que te encuentren.</p>
+        <a href="badge-comparte-compas.png" download class="btn btn-brass">⬇ Descargar mi imagen para compartir</a>
       </div>
     </div>
   </section>
