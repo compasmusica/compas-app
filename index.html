@@ -167,6 +167,21 @@
   /* Especialidad principal: se muestra primero, destacada, arriba de "también toca" */
   .tcard-especialidad{font-size:12.5px;font-weight:700;color:var(--brass-bright);letter-spacing:0.2px;margin-top:2px;text-transform:uppercase;}
 
+  /* Ficha ampliada del profesor (foto grande, todo con más espacio) */
+  .perfil-avatar-grande{
+    width:100%;aspect-ratio:1;max-width:280px;margin:0 auto 18px;border-radius:18px;
+    background:linear-gradient(135deg,var(--teal),var(--teal-bright));
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Fraunces',serif;font-weight:600;font-size:56px;color:var(--text-warm);
+    background-size:cover;background-position:center;
+  }
+  .perfil-nombre{font-family:'Fraunces',serif;font-size:22px;font-weight:600;text-align:center;color:var(--text-warm);}
+  .perfil-especialidad{text-align:center;font-size:13px;font-weight:700;color:var(--brass-bright);text-transform:uppercase;letter-spacing:0.3px;margin-top:4px;}
+  .perfil-rate{text-align:center;font-family:'IBM Plex Mono';font-size:16px;color:var(--brass-bright);margin-top:8px;}
+  .perfil-seccion{margin-top:20px;}
+  .perfil-seccion-titulo{font-family:'IBM Plex Mono';font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;}
+  .perfil-bio{font-size:14.5px;line-height:1.6;color:var(--text-warm);}
+
   /* Sello dorado de Verificado UNM, más visible que un simple ícono */
   .unm-seal{display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,#d9a94a,#b8842e);color:#2a1c05;font-size:10.5px;font-weight:700;padding:2px 8px 2px 6px;border-radius:20px;vertical-align:middle;box-shadow:0 1px 2px rgba(184,132,46,0.4);letter-spacing:0.2px;}
   .unm-seal.alumno{background:linear-gradient(135deg,#5a7a8c,#3d5c6d);color:#f2f6f8;box-shadow:0 1px 2px rgba(61,92,109,0.4);}
@@ -541,6 +556,13 @@
   </div>
 
   <!-- ===== MODAL: PUBLICAR SUPLENCIA ===== -->
+  <div class="modal-overlay" id="perfilCompletoModal">
+    <div class="modal">
+      <div id="perfilCompletoBody"></div>
+      <button class="btn btn-ghost btn-block" style="margin-top:16px;" onclick="closePerfilCompletoModal()">Cerrar</button>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="suplenciaModal">
     <div class="modal">
       <h3>Publicar suplencia</h3>
@@ -990,6 +1012,52 @@ function renderFilterbar(){
 
 function initials(name){ return (name||"?").split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase(); }
 
+/* Ficha ampliada: foto grande y toda la información con más espacio — para
+   cuando alguien quiere ver a fondo a un profesor, no solo la vista rápida
+   de la tarjeta de Explorar. */
+window.abrirPerfilCompleto = function(teacherId){
+  const t = TEACHERS.find(x=>x.id===teacherId);
+  if(!t) return;
+  const verificado = (t.clasesCompletadas||0) >= 3;
+  const rating = VALORACIONES_POR_PROFESOR[t.id];
+  const ratingHtml = rating ? `<div style="text-align:center;margin-top:6px;font-size:13px;color:var(--brass-bright);">★ ${rating.promedio.toFixed(1)} (${rating.cantidad} clases)</div>` : '';
+
+  document.getElementById('perfilCompletoBody').innerHTML = `
+    <div class="perfil-avatar-grande" style="${t.photo?`background-image:url(${t.photo})`:''}">${t.photo?'':initials(t.name)}</div>
+    <div class="perfil-nombre">${t.name}${verificado?' <span class="verified-badge" title="Verificado: 3+ clases en Compás">✓</span>':''}${unmSealHtml(t)}</div>
+    ${t.especialidad ? `<div class="perfil-especialidad">${t.especialidad}</div>` : ''}
+    <div class="perfil-rate">S/ ${t.rate} / hora</div>
+    ${ratingHtml}
+
+    <div class="perfil-seccion">
+      <div class="perfil-seccion-titulo">Instrumentos</div>
+      <div class="tcard-tags">${(t.instruments||[]).map(i=>`<span class="tag-pill">${i}</span>`).join('')}</div>
+    </div>
+
+    ${(t.anosExperiencia || t.formacion) ? `<div class="perfil-seccion">
+      <div class="perfil-seccion-titulo">Trayectoria</div>
+      ${t.anosExperiencia ? `<div class="cred-item" style="font-size:13.5px;">🎼 ${t.anosExperiencia} años de experiencia</div>` : ''}
+      ${t.formacion ? `<div class="cred-item" style="font-size:13.5px;margin-top:4px;">🎓 ${t.formacion}</div>` : ''}
+    </div>` : ''}
+
+    ${t.bio ? `<div class="perfil-seccion">
+      <div class="perfil-seccion-titulo">Sobre mí</div>
+      <div class="perfil-bio">${t.bio}</div>
+    </div>` : ''}
+
+    ${t.videoUrl ? `<div class="perfil-seccion"><a href="${t.videoUrl}" target="_blank" rel="noopener" class="video-link">▶ Ver video</a></div>` : ''}
+
+    <div class="perfil-seccion">
+      <div class="perfil-seccion-titulo">Modalidades y zona</div>
+      <div class="tcard-tags"><span class="tag-pill zone">${t.zone}</span>${modalidadPillsHtml(t)}</div>
+    </div>
+
+    <button class="btn btn-teal btn-block" style="margin-top:22px;" onclick="closePerfilCompletoModal(); openSolicitudModal('${t.id}')">Solicitar horario</button>
+  `;
+  document.getElementById('perfilCompletoModal').classList.add('active');
+}
+window.closePerfilCompletoModal = function(){ document.getElementById('perfilCompletoModal').classList.remove('active'); }
+
 function renderInstantSection(){
   const wrap = document.getElementById('instantSection');
   const disponibles = TEACHERS.filter(t=>
@@ -1032,7 +1100,7 @@ function renderTeacherList(){
       ? `<span class="tag-pill" style="background:rgba(47,110,104,0.16);color:var(--teal-bright);">También disponible en ${zonaExtra.zona}${zonaExtra.costo ? ` (+S/${zonaExtra.costo})` : ''}</span>` : '';
     const instanteHtml = esDisponibleAhora(t) ? ' <span class="instante-badge"><span class="dot"></span>Disponible ahora</span>' : '';
     return `
-    <div class="teacher-card">
+    <div class="teacher-card" style="cursor:pointer;" onclick="abrirPerfilCompleto('${t.id}')">
       <div class="avatar" style="${t.photo ? `background-image:url(${t.photo})`:''}">${t.photo?'':initials(t.name)}</div>
       <div class="tcard-body">
         <div class="tcard-top">
