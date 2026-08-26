@@ -559,6 +559,16 @@
   </div>
 
   <!-- ===== MODAL: PUBLICAR SUPLENCIA ===== -->
+  <div class="modal-overlay" id="completarRegistroModal">
+    <div class="modal">
+      <h3>Completa tu registro</h3>
+      <div class="hint">Nos faltó guardar tu nombre la vez pasada. Complétalo para que aparezca bien en la app.</div>
+      <div class="field"><label>Tu nombre</label><input type="text" id="cr_name" placeholder="Nombre y apellido"></div>
+      <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="guardarCompletarRegistro()">Guardar</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="document.getElementById('completarRegistroModal').classList.remove('active')">Ahora no</button>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="compartirImagenModal">
     <div class="modal">
       <h3>Tu imagen para compartir</h3>
@@ -927,7 +937,12 @@ onAuthStateChanged(auth, async (user) => {
     if(snap.exists()){
       currentUser = { uid: user.uid, email: user.email, ...snap.data() };
     } else {
+      // Cuenta "fantasma": existe en Firebase Auth pero su ficha en la base de
+      // datos nunca se terminó de guardar (ej. se cortó la conexión a medias
+      // durante el registro). Le pedimos el nombre para terminar de crear su
+      // perfil bien, en vez de mostrar su correo como nombre para siempre.
       currentUser = { uid: user.uid, email: user.email, name: user.email, role: "alumno", creditos: 0 };
+      abrirCompletarRegistro();
     }
     if(currentUser.role === 'profesor'){
       try{
@@ -1080,6 +1095,27 @@ window.abrirGenerarImagen = function(){
   dibujarImagenCompartir(currentEditingTeacher);
 }
 window.closeCompartirImagenModal = function(){ document.getElementById('compartirImagenModal').classList.remove('active'); }
+
+window.abrirCompletarRegistro = function(){
+  document.getElementById('cr_name').value = '';
+  document.getElementById('completarRegistroModal').classList.add('active');
+}
+window.guardarCompletarRegistro = async function(){
+  const name = document.getElementById('cr_name').value.trim();
+  if(!name){ toast('Escribe tu nombre', true); return; }
+  try{
+    await setDoc(doc(db,"usuarios",currentUser.uid), {
+      name, email: currentUser.email, role: "alumno", creditos: CREDITOS_INICIALES,
+      phone: "", zone: "", createdAt: serverTimestamp()
+    });
+    await asegurarCanalNotifPersonal(currentUser.uid);
+    currentUser.name = name;
+    currentUser.creditos = CREDITOS_INICIALES;
+    document.getElementById('completarRegistroModal').classList.remove('active');
+    renderAuthWidget();
+    toast('¡Listo! Tu perfil quedó completo.');
+  }catch(e){ console.error(e); toast('No se pudo guardar, intenta de nuevo', true); }
+}
 
 function dibujarTextoEspaciado(ctx, text, cx, y, spacing){
   let total = 0;
