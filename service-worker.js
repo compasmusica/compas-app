@@ -1,4 +1,4 @@
-const CACHE_NAME = 'compas-cache-v30';
+const CACHE_NAME = 'compas-cache-v31';
 const FILES_TO_CACHE = [
   './index.html',
   './manifest.json',
@@ -23,7 +23,6 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Deja pasar directo las llamadas a Firebase/Google (no las cachea)
   if (event.request.url.includes('firestore.googleapis.com') ||
       event.request.url.includes('identitytoolkit.googleapis.com') ||
       event.request.url.includes('googleapis.com')) {
