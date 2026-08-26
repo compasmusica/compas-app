@@ -182,6 +182,9 @@
   .perfil-seccion-titulo{font-family:'IBM Plex Mono';font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;}
   .perfil-bio{font-size:14.5px;line-height:1.6;color:var(--text-warm);}
 
+  .compartir-canvas-wrap{width:100%;border-radius:14px;overflow:hidden;box-shadow:var(--shadow);}
+  .compartir-canvas-wrap canvas{width:100%;height:auto;display:block;}
+
   /* Sello dorado de Verificado UNM, más visible que un simple ícono */
   .unm-seal{display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,#d9a94a,#b8842e);color:#2a1c05;font-size:10.5px;font-weight:700;padding:2px 8px 2px 6px;border-radius:20px;vertical-align:middle;box-shadow:0 1px 2px rgba(184,132,46,0.4);letter-spacing:0.2px;}
   .unm-seal.alumno{background:linear-gradient(135deg,#5a7a8c,#3d5c6d);color:#f2f6f8;box-shadow:0 1px 2px rgba(61,92,109,0.4);}
@@ -556,6 +559,18 @@
   </div>
 
   <!-- ===== MODAL: PUBLICAR SUPLENCIA ===== -->
+  <div class="modal-overlay" id="compartirImagenModal">
+    <div class="modal">
+      <h3>Tu imagen para compartir</h3>
+      <div class="hint">Se arma sola con tu foto y tus datos. Descárgala y compártela en Instagram, WhatsApp Estado o Facebook.</div>
+      <div class="compartir-canvas-wrap">
+        <canvas id="compartirCanvas" width="1080" height="1080"></canvas>
+      </div>
+      <button class="btn btn-primary btn-block" style="margin-top:16px;" onclick="descargarImagenCompartir()">⬇ Descargar imagen</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeCompartirImagenModal()">Cerrar</button>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="perfilCompletoModal">
     <div class="modal">
       <div id="perfilCompletoBody"></div>
@@ -1057,6 +1072,141 @@ window.abrirPerfilCompleto = function(teacherId){
   document.getElementById('perfilCompletoModal').classList.add('active');
 }
 window.closePerfilCompletoModal = function(){ document.getElementById('perfilCompletoModal').classList.remove('active'); }
+
+/* ============ IMAGEN PARA COMPARTIR (canvas, con los datos del propio perfil) ============ */
+window.abrirGenerarImagen = function(){
+  if(!currentEditingTeacher){ toast('Primero completa y publica tu perfil', true); return; }
+  document.getElementById('compartirImagenModal').classList.add('active');
+  dibujarImagenCompartir(currentEditingTeacher);
+}
+window.closeCompartirImagenModal = function(){ document.getElementById('compartirImagenModal').classList.remove('active'); }
+
+function dibujarTextoEspaciado(ctx, text, cx, y, spacing){
+  let total = 0;
+  for(const ch of text) total += ctx.measureText(ch).width + spacing;
+  total -= spacing;
+  let x = cx - total/2;
+  const prevAlign = ctx.textAlign;
+  ctx.textAlign = 'left';
+  for(const ch of text){
+    ctx.fillText(ch, x, y);
+    x += ctx.measureText(ch).width + spacing;
+  }
+  ctx.textAlign = prevAlign;
+}
+function rectRedondeado(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+function dibujarImagenCompartir(t){
+  const canvas = document.getElementById('compartirCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = 1080, H = 1080;
+
+  function pintar(imgFoto){
+    ctx.fillStyle = '#FBF8F2';
+    ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle = '#B8863A';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(36,36,W-72,H-72);
+
+    ctx.fillStyle = '#B8863A';
+    ctx.font = '700 26px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    dibujarTextoEspaciado(ctx, 'GREMIO DE PROFESORES', W/2, 130, 4);
+
+    // Foto circular (o iniciales si no tiene foto)
+    const photoSize = 260, photoY = 190, cy = photoY + photoSize/2;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(W/2, cy, photoSize/2, 0, Math.PI*2);
+    ctx.closePath();
+    ctx.clip();
+    if(imgFoto){
+      const scale = Math.max(photoSize/imgFoto.width, photoSize/imgFoto.height);
+      const iw = imgFoto.width*scale, ih = imgFoto.height*scale;
+      ctx.drawImage(imgFoto, W/2-iw/2, cy-ih/2, iw, ih);
+    } else {
+      ctx.fillStyle = '#2F5D8A';
+      ctx.fillRect(W/2-photoSize/2, photoY, photoSize, photoSize);
+      ctx.fillStyle = '#F4F1EA';
+      ctx.font = '600 90px Georgia, serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(initials(t.name), W/2, cy);
+      ctx.textBaseline = 'alphabetic';
+    }
+    ctx.restore();
+    ctx.beginPath();
+    ctx.arc(W/2, cy, photoSize/2, 0, Math.PI*2);
+    ctx.strokeStyle = '#B8863A';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    ctx.fillStyle = '#20242E';
+    ctx.font = '700 60px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(t.name, W/2, photoY+photoSize+85);
+
+    let y = photoY+photoSize+130;
+    if(t.especialidad){
+      ctx.fillStyle = '#D9A64F';
+      ctx.font = '700 28px Arial, sans-serif';
+      dibujarTextoEspaciado(ctx, t.especialidad.toUpperCase(), W/2, y, 2);
+      y += 55;
+    }
+
+    ctx.fillStyle = '#D9A64F';
+    ctx.font = 'italic 700 40px Georgia, serif';
+    ctx.fillText('Soy parte del gremio ♪', W/2, y);
+    y += 40;
+
+    ctx.strokeStyle = '#B8863A';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(W/2-70, y); ctx.lineTo(W/2+70, y);
+    ctx.stroke();
+    y += 45;
+
+    ctx.fillStyle = '#6B6B72';
+    ctx.font = '27px Arial, sans-serif';
+    ctx.fillText('Profesor egresado / estudiante de la', W/2, y);
+    y += 40;
+    ctx.fillText('Universidad Nacional de Música', W/2, y);
+
+    const ctaY = H-150;
+    ctx.fillStyle = '#2F5D8A';
+    rectRedondeado(ctx, W/2-230, ctaY, 460, 70, 35);
+    ctx.fill();
+    ctx.fillStyle = '#F4F1EA';
+    ctx.font = '700 26px Arial, sans-serif';
+    ctx.fillText('Búscame en la app Compás', W/2, ctaY+45);
+  }
+
+  if(t.photo){
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => pintar(img);
+    img.onerror = () => pintar(null);
+    img.src = t.photo;
+  } else {
+    pintar(null);
+  }
+}
+
+window.descargarImagenCompartir = function(){
+  const canvas = document.getElementById('compartirCanvas');
+  const link = document.createElement('a');
+  link.download = 'compas-comparte.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
 
 function renderInstantSection(){
   const wrap = document.getElementById('instantSection');
@@ -2444,6 +2594,7 @@ function renderMyProfilePreview(){
       </div>
     </div>
     <button class="btn btn-ghost btn-block" style="margin-top:12px;" onclick="editMyProfile()">Editar mi perfil</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="abrirGenerarImagen()">🎨 Generar mi imagen para compartir</button>
     ${(t.modalidades||[]).includes('instantaneo') ? `
     <div class="instante-toggle-row">
       <div class="toggle-row" style="background:transparent;margin-bottom:0;padding:0;">
