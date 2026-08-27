@@ -132,6 +132,16 @@
   .tipo-card .tipo-name{font-weight:700; font-size:14.5px; color:var(--teal); margin-bottom:4px;}
   .tipo-card p{font-size:13px; color:var(--text-dim); margin:0;}
 
+  /* ---------- NAVEGACIÓN ---------- */
+  .nav-card{background:var(--ink-2); border:1px solid var(--paper-dim); border-radius:12px; padding:18px; margin-bottom:12px; display:flex; gap:16px; align-items:flex-start;}
+  .nav-card .nav-ic{
+    width:44px; height:44px; border-radius:12px; background:var(--paper); flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:20px; color:var(--teal);
+  }
+  .nav-card .nav-name{font-weight:700; font-size:15px; color:var(--text-warm); margin-bottom:3px;}
+  .nav-card p{font-size:13.5px; color:var(--text-dim); margin:0; line-height:1.5;}
+  .nav-card .nav-name .ruta{font-family:'IBM Plex Mono'; font-size:11px; font-weight:400; color:var(--brass); margin-left:6px;}
+
   /* ---------- CTA FINAL ---------- */
   .cta-final{
     text-align:center; padding:60px 0; background:linear-gradient(135deg,var(--teal),#1f4166); color:#F4F1EA;
@@ -235,6 +245,46 @@
             <h3>Dictas la clase y cobras</h3>
             <p>El chat se desbloquea para coordinar los detalles finales. Compás cobra 10% solo sobre la clase — la movilidad, si aplica, es 100% tuya.</p>
           </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="section-eyebrow">Orientación rápida</div>
+      <h2>Cómo moverte en la app</h2>
+      <p class="intro">Abajo de la pantalla vas a ver 4 botones. Guárdate esto — te ahorra tener que preguntar cada vez que quieras cambiar algo.</p>
+
+      <div class="nav-card">
+        <div class="nav-ic">♪</div>
+        <div>
+          <div class="nav-name">Explorar</div>
+          <p>Así te ven los alumnos cuando buscan profesor. Tú también lo usas para ver a otros colegas del gremio.</p>
+        </div>
+      </div>
+
+      <div class="nav-card">
+        <div class="nav-ic">✎</div>
+        <div>
+          <div class="nav-name">Enseñar <span class="ruta">— tu centro de control</span></div>
+          <p><b>Este es el botón que más vas a usar.</b> Aquí editas tu perfil, armas o cambias tus horarios, activas Compás Al Instante, pides tu verificación UNM, y generas tu imagen para compartir en redes. Cada vez que quieras cambiar algo de tu perfil, vuelve aquí — no está en ningún otro lado.</p>
+        </div>
+      </div>
+
+      <div class="nav-card">
+        <div class="nav-ic">⚑</div>
+        <div>
+          <div class="nav-name">Suplencias</div>
+          <p>Publica cuando necesites que un colega te cubra una clase, o postúlate a la de alguien más. Solo lo ven los profesores.</p>
+        </div>
+      </div>
+
+      <div class="nav-card">
+        <div class="nav-ic">◐</div>
+        <div>
+          <div class="nav-name">Mi cuenta <span class="ruta">— incluye Mis reservas</span></div>
+          <p>Tu información personal, activar tus notificaciones de mensajes, y cerrar sesión. Ojo: <b>"Mis reservas" no es un botón aparte</b> — vive adentro de "Mi cuenta". Ahí ves el estado de tus solicitudes, confirmas o rechazas horarios, y marcas tus clases como dictadas.</p>
         </div>
       </div>
     </div>
