@@ -496,6 +496,7 @@
         <div class="field"><label>Correo</label><input type="email" id="l_email" placeholder="tucorreo@ejemplo.com"></div>
         <div class="field"><label>Contraseña</label><input type="password" id="l_pass" placeholder="••••••••"></div>
         <button class="btn btn-primary btn-block btn-lg" onclick="doLogin()">Ingresar</button>
+        <button class="btn btn-ghost btn-block" style="margin-top:8px;font-size:12.5px;" onclick="recuperarContrasena()">¿Olvidaste tu contraseña?</button>
       </div>
 
       <div id="authFormRegister" style="display:none;">
@@ -766,7 +767,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-  onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup
+  onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 /* --------------------------------------------------------------
@@ -1837,6 +1838,129 @@ window.rechazarSolicitud = async function(reservaId){
   }catch(e){ console.error(e); toast('No se pudo rechazar', true); }
 }
 
+/* ============ CANCELACIONES ============
+   Antes de que haya pago de por medio (estado 'solicitud' o 'disponible'), tanto
+   alumno como profesor pueden cancelar directo — no hay plata comprometida todavía.
+   Una vez que el alumno ya pagó (Yape/Plin es manual, no hay pasarela ni reembolso
+   automático posible), no se puede "deshacer" solo con un botón — el alumno puede
+   SOLICITAR la cancelación, y el admin la resuelve a mano, coordinando el reembolso
+   por fuera de la app si corresponde. */
+
+window.cancelarReservaAlumno = async function(reservaId){
+  const ok = confirm('¿Seguro que quieres cancelar esta solicitud? No se puede deshacer.');
+  if(!ok) return;
+  try{
+    const snap = await getDoc(doc(db,"reservas",reservaId));
+    const r = snap.data();
+    await updateDoc(doc(db,"reservas",reservaId), { estado: 'cancelada' });
+    if(r && r.profesorId){
+      getDoc(doc(db,"profesores",r.profesorId)).then(profSnap=>{
+        const topic = profSnap.exists() ? profSnap.data().ntfyTopic : null;
+        // Si el horario ya estaba confirmado (y por lo tanto marcado "ocupado" en su
+        // calendario), el alumno no tiene permiso para liberarlo directamente — se lo
+        // avisamos al profesor para que lo libere él mismo desde "Mis horarios".
+        const avisoHorario = r.estado==='disponible' ? ' Si ese horario quedó marcado como ocupado en tu calendario, libéralo desde "Mis horarios".' : '';
+        if(topic) enviarNotificacion(topic, 'Un alumno canceló', `${currentUser.name} canceló su solicitud: "${r.horario}".${avisoHorario}`);
+      });
+    }
+    toast('Solicitud cancelada');
+    loadMyReservas();
+  }catch(e){ console.error(e); toast('No se pudo cancelar', true); }
+}
+
+window.cancelarReservaProfesor = async function(reservaId){
+  const ok = confirm('¿Seguro que ya no puedes dictar esta clase confirmada? Se cancelará y se le avisará al alumno.');
+  if(!ok) return;
+  try{
+    const snap = await getDoc(doc(db,"reservas",reservaId));
+    const r = snap.data();
+    await updateDoc(doc(db,"reservas",reservaId), { estado: 'cancelada' });
+    // A diferencia del alumno, el profesor sí es dueño de su propio calendario —
+    // liberamos su horario (y el compromiso de paquete si aplica) en el mismo paso.
+    if(r && r.slotId){
+      await liberarHorarioDeReserva(r, reservaId);
+    }
+    if(r){
+      obtenerCanalNotifDe(r.alumnoId).then(topic=>{
+        if(topic) enviarNotificacion(topic, 'Tu profesor canceló', `${r.profesorNombre} ya no puede dictar: "${r.horario}". Prueba con otro horario o profesor.`);
+      });
+    }
+    toast('Clase cancelada, se avisó al alumno');
+    loadMyReservas();
+  }catch(e){ console.error(e); toast('No se pudo cancelar', true); }
+}
+
+/* Ya con el pago hecho (o subido, esperando confirmación), no se cancela solo —
+   queda marcada para que el admin la revise y coordine, incluido el reembolso si
+   corresponde (fuera de la app, porque el pago mismo también se recibe fuera de
+   la app, por Yape/Plin). */
+window.solicitarCancelacionPago = async function(reservaId){
+  const motivo = prompt('Cuéntanos brevemente por qué necesitas cancelar (esto lo ve el administrador):');
+  if(motivo === null) return; // canceló el prompt
+  try{
+    await updateDoc(doc(db,"reservas",reservaId), {
+      cancelacionSolicitada: true,
+      motivoCancelacion: motivo.trim() || 'Sin motivo especificado'
+    });
+    notificarCesar('Solicitud de cancelación', `${currentUser.name} pidió cancelar una reserva ya pagada. Revísala en el panel de admin.`);
+    toast('Tu solicitud fue enviada. Te avisamos cuando se resuelva.');
+    loadMyReservas();
+  }catch(e){ console.error(e); toast('No se pudo enviar la solicitud', true); }
+}
+
+/* Libera el bloque de horario (y el compromiso de paquete si aplica) de una
+   reserva cancelada — mismo criterio que ya usa "Zona de limpieza". Requiere
+   que quien llama tenga permiso de escritura sobre ese profesor (el profesor
+   mismo, o el admin). */
+async function liberarHorarioDeReserva(r, reservaId){
+  try{
+    const profSnap = await getDoc(doc(db,"profesores",r.profesorId));
+    if(!profSnap.exists()) return;
+    const horarios = (profSnap.data().horarios || []).map(b =>
+      b.id === r.slotId ? { ...b, estado: 'disponible' } : b
+    );
+    const compromisosPaquete = (profSnap.data().compromisosPaquete || []).filter(c => c.reservaId !== reservaId);
+    await updateDoc(doc(db,"profesores",r.profesorId), { horarios, compromisosPaquete });
+  }catch(e){ console.error('No se pudo liberar el horario:', e); }
+}
+
+/* Admin resuelve una solicitud de cancelación ya pagada */
+window.aprobarCancelacion = async function(reservaId){
+  const ok = confirm('Esto marca la reserva como cancelada y libera el horario del profesor. El reembolso (si corresponde) lo coordinas tú por fuera de la app. ¿Continuar?');
+  if(!ok) return;
+  try{
+    const snap = await getDoc(doc(db,"reservas",reservaId));
+    const r = snap.data();
+    await updateDoc(doc(db,"reservas",reservaId), { estado: 'cancelada', cancelacionSolicitada: false });
+    if(r && r.slotId) await liberarHorarioDeReserva(r, reservaId);
+    if(r){
+      const avisoAlumno = obtenerCanalNotifDe(r.alumnoId).then(topic=>{
+        if(topic) enviarNotificacion(topic, 'Tu cancelación fue aprobada', `Tu reserva con ${r.profesorNombre} quedó cancelada. Si corresponde reembolso, te contactaremos por Soporte.`);
+      });
+      const profSnap = getDoc(doc(db,"profesores",r.profesorId)).then(ps=>{
+        const topic = ps.exists() ? ps.data().ntfyTopic : null;
+        if(topic) enviarNotificacion(topic, 'Reserva cancelada por el admin', `La clase con ${r.alumnoNombre} ("${r.horario}") quedó cancelada.`);
+      });
+    }
+    toast('Cancelación aprobada');
+    loadAdminStats();
+  }catch(e){ console.error(e); toast('No se pudo procesar', true); }
+}
+window.rechazarSolicitudCancelacion = async function(reservaId){
+  try{
+    const snap = await getDoc(doc(db,"reservas",reservaId));
+    const r = snap.data();
+    await updateDoc(doc(db,"reservas",reservaId), { cancelacionSolicitada: false });
+    if(r){
+      obtenerCanalNotifDe(r.alumnoId).then(topic=>{
+        if(topic) enviarNotificacion(topic, 'Tu solicitud de cancelación fue revisada', `No se aprobó la cancelación de tu reserva con ${r.profesorNombre}. Escríbenos por Soporte si tienes dudas.`);
+      });
+    }
+    toast('Solicitud de cancelación rechazada');
+    loadAdminStats();
+  }catch(e){ console.error(e); toast('No se pudo procesar', true); }
+}
+
 /* Alumno paga una vez el profesor confirmó disponibilidad */
 window.openPagoModal = function(reservaId, precio, precioClases, movilidad){
   pagoReservaId = reservaId;
@@ -2162,17 +2286,24 @@ function renderMisReservas(lista, rol){
     if(r.estado==='solicitud'){
       estadoTxt = rol==='alumno' ? 'Esperando que confirme disponibilidad' : `Pidió: "${r.horario}"`;
       if(rol==='profesor') accion = `<div class="cta-row"><button class="btn btn-teal btn-sm" onclick="confirmarDisponibilidad('${r.id}')">Confirmar</button><button class="btn btn-ghost btn-sm" onclick="rechazarSolicitud('${r.id}')">No puedo</button></div>`;
+      if(rol==='alumno') accion = `<button class="btn btn-ghost btn-sm" style="margin-top:8px;color:var(--danger);" onclick="cancelarReservaAlumno('${r.id}')">Cancelar solicitud</button>`;
     } else if(r.estado==='disponible'){
       estadoTxt = r.tipo==='instantanea'
         ? (rol==='alumno' ? '⚡ Pedido al instante, falta tu pago' : '⚡ Te pidieron clase ahora mismo, falta que pague')
         : (rol==='alumno' ? 'Horario confirmado, falta tu pago' : 'Confirmaste, esperando pago');
-      if(rol==='alumno') accion = `<button class="btn btn-teal btn-sm" style="margin-top:8px;" onclick="openPagoModal('${r.id}', ${r.precio}, ${r.precioClases ?? r.precio}, ${r.movilidad || 0})">Pagar ahora</button>`;
+      if(rol==='alumno') accion = `<button class="btn btn-teal btn-sm" style="margin-top:8px;" onclick="openPagoModal('${r.id}', ${r.precio}, ${r.precioClases ?? r.precio}, ${r.movilidad || 0})">Pagar ahora</button><button class="btn btn-ghost btn-sm" style="margin-top:8px;color:var(--danger);" onclick="cancelarReservaAlumno('${r.id}')">Cancelar</button>`;
+      if(rol==='profesor') accion = `<button class="btn btn-ghost btn-sm" style="margin-top:8px;color:var(--danger);" onclick="cancelarReservaProfesor('${r.id}')">No puedo dictarla</button>`;
     } else if(r.estado==='pendiente_pago'){
       estadoTxt = 'Verificando tu pago';
       // El alumno acaba de subir su comprobante y queda esperando sin ver nada —
       // le mostramos de vuelta lo que subió, para que confíe en que sí se envió bien.
       if(rol==='alumno' && r.comprobante){
         accion = `<div style="margin-top:8px;"><div class="mono" style="font-size:10.5px;color:var(--text-dim);margin-bottom:5px;">Tu comprobante:</div><img src="${r.comprobante}" style="width:100%;max-width:220px;border-radius:8px;display:block;"></div>`;
+      }
+      if(rol==='alumno'){
+        accion += r.cancelacionSolicitada
+          ? `<div class="sup-meta" style="margin-top:8px;color:var(--brass-bright);">Solicitud de cancelación en revisión</div>`
+          : `<button class="btn btn-ghost btn-sm" style="margin-top:8px;color:var(--danger);" onclick="solicitarCancelacionPago('${r.id}')">Solicitar cancelación</button>`;
       }
     } else if(r.estado==='pago_confirmado'){
       if(r.esPaquete && r.clases){
@@ -2187,11 +2318,18 @@ function renderMisReservas(lista, rol){
         estadoTxt = `Clase confirmada`;
         accion = `<button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="marcarCompletada('${r.id}')">Marcar clase completada</button>`;
       }
+      if(rol==='alumno'){
+        accion += r.cancelacionSolicitada
+          ? `<div class="sup-meta" style="margin-top:8px;color:var(--brass-bright);">Solicitud de cancelación en revisión</div>`
+          : `<button class="btn btn-ghost btn-sm" style="margin-top:8px;color:var(--danger);" onclick="solicitarCancelacionPago('${r.id}')">Solicitar cancelación</button>`;
+      }
     } else if(r.estado==='completada'){
       estadoTxt = 'Clase completada';
       if(rol==='alumno' && !r.calificada) accion = `<button class="btn btn-teal btn-sm" style="margin-top:8px;" onclick="openCalificarModal('${r.id}','${r.profesorId}','${r.profesorNombre}')">Calificar clase</button>`;
     } else if(r.estado==='rechazada'){
       estadoTxt = 'Ese horario no funcionó. Intenta con otro.';
+    } else if(r.estado==='cancelada'){
+      estadoTxt = 'Cancelada';
     }
     const chatBtn = ['pago_confirmado','completada'].includes(r.estado)
       ? `<button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="openChat('${r.id}','${otro.replace(/'/g,"")}')">💬 Chat</button>`
@@ -3094,6 +3232,20 @@ window.doLogin = async function(){
   }
 }
 
+window.recuperarContrasena = async function(){
+  const email = document.getElementById('l_email').value.trim();
+  if(!email){ toast('Escribe tu correo arriba primero', true); return; }
+  try{
+    await sendPasswordResetEmail(auth, email);
+    toast('Te enviamos un link a tu correo para crear una nueva contraseña ✓');
+  }catch(e){
+    console.error(e);
+    // No decimos si el correo existe o no (por seguridad), salvo error real de formato.
+    if(e.code === 'auth/invalid-email'){ toast('Ese correo no es válido', true); }
+    else { toast('Si ese correo tiene una cuenta, te llegará un link para restablecer la contraseña', false); }
+  }
+}
+
 /* ============ GOOGLE SIGN-IN ============ */
 window.loginConGoogle = async function(){
   try{
@@ -3454,11 +3606,13 @@ window.loadAdminStats = async function(){
       .slice(0,6);
 
     const pendientes = [];
+    const solicitudesCancelacion = [];
     const porPagar = {}; // profesorId -> {nombre, monto}
     let comisionAcumulada = 0;
     reservasSnap.forEach(d=>{
       const r = { id:d.id, ...d.data() };
       if(r.estado === 'pendiente_pago') pendientes.push(r);
+      if(r.cancelacionSolicitada === true) solicitudesCancelacion.push(r);
       if(r.estado === 'pago_confirmado' || r.estado === 'completada'){
         comisionAcumulada += (r.comisionApp||0);
         if(!r.pagadoAProfesor){
@@ -3485,6 +3639,20 @@ window.loadAdminStats = async function(){
           <button class="btn btn-teal btn-sm" onclick="guardarPrecioExpress()">Guardar</button>
         </div>
       </div>
+
+      <div class="admin-section-title mono">Solicitudes de cancelación (${solicitudesCancelacion.length})</div>
+      ${solicitudesCancelacion.length===0 ? '<div class="empty-state"><p>No hay solicitudes pendientes.</p></div>' :
+        solicitudesCancelacion.map(r=>`
+          <div class="sup-card">
+            <div class="sup-top"><span class="sup-title">${r.alumnoNombre} → ${r.profesorNombre}</span><span class="sup-monto">S/ ${r.precio}</span></div>
+            <div class="sup-meta">${r.horario}</div>
+            <div class="sup-meta" style="margin-top:4px;font-style:italic;">"${r.motivoCancelacion || 'Sin motivo especificado'}"</div>
+            <div class="cta-row" style="margin-top:8px;">
+              <button class="btn btn-danger btn-sm" onclick="aprobarCancelacion('${r.id}')">Aprobar cancelación</button>
+              <button class="btn btn-ghost btn-sm" onclick="rechazarSolicitudCancelacion('${r.id}')">Rechazar</button>
+            </div>
+          </div>
+        `).join('')}
 
       <div class="admin-section-title mono">Profesores pendientes de aprobar (${pendientesAprobar.length})</div>
       ${pendientesAprobar.length===0 ? '<div class="empty-state"><p>No hay nadie esperando aprobación.</p></div>' :
