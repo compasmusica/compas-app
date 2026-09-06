@@ -475,6 +475,7 @@
       <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeRoleChoice(); openFaqModal();">Preguntas frecuentes</button>
       <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeRoleChoice(); openSoporteModal();">Soporte / Ayuda</button>
       <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeRoleChoice()">Cerrar</button>
+      <p style="margin-top:16px;font-size:10.5px;color:var(--text-dim);text-align:center;"><a href="#" onclick="openTerminosModal();return false;" style="color:var(--text-dim);">Términos y Condiciones</a> · © 2026 Compás. Todos los derechos reservados.</p>
     </div>
   </div>
 
@@ -507,7 +508,11 @@
         <div class="field"><label>Contraseña</label><input type="password" id="s_pass" placeholder="Mínimo 6 caracteres"></div>
         <div class="field"><label>Teléfono / WhatsApp</label><input type="tel" id="s_phone" placeholder="+51 999 999 999"></div>
         <div class="field"><label>Tu zona</label><select id="s_zone"><option value="">Selecciona tu distrito</option></select></div>
-        <button class="btn btn-primary btn-block btn-lg" onclick="saveStudent()">Registrarme</button>
+        <label style="display:flex;align-items:flex-start;gap:8px;margin-top:14px;font-size:11.5px;color:var(--text-dim);line-height:1.5;cursor:pointer;">
+          <input type="checkbox" id="s_terminos" style="margin-top:2px;flex-shrink:0;">
+          <span>Acepto los <a href="#" onclick="event.preventDefault();event.stopPropagation();openTerminosModal();" style="color:var(--teal-bright);">Términos, Condiciones y Políticas de Propiedad Intelectual</a> de Compás.</span>
+        </label>
+        <button class="btn btn-primary btn-block btn-lg" style="margin-top:10px;" onclick="saveStudent()">Registrarme</button>
         <p style="font-size:11px;color:var(--text-dim);margin-top:12px;line-height:1.5;">Al registrarte aceptas que el administrador del gremio puede revisar conversaciones internas en caso de disputas o reportes, para proteger la seguridad de la comunidad.</p>
       </div>
 
@@ -529,7 +534,11 @@
         <div class="hint">Así los profesores te pueden ubicar y contactar.</div>
         <div class="field"><label>Teléfono / WhatsApp</label><input type="tel" id="ga_phone" placeholder="+51 999 999 999"></div>
         <div class="field"><label>Tu zona</label><select id="ga_zone"><option value="">Selecciona tu distrito</option></select></div>
-        <button class="btn btn-primary btn-block btn-lg" onclick="finalizarRegistroAlumnoGoogle()">Finalizar registro</button>
+        <label style="display:flex;align-items:flex-start;gap:8px;margin-top:6px;font-size:11.5px;color:var(--text-dim);line-height:1.5;cursor:pointer;">
+          <input type="checkbox" id="ga_terminos" style="margin-top:2px;flex-shrink:0;">
+          <span>Acepto los <a href="#" onclick="event.preventDefault();event.stopPropagation();openTerminosModal();" style="color:var(--teal-bright);">Términos, Condiciones y Políticas de Propiedad Intelectual</a> de Compás.</span>
+        </label>
+        <button class="btn btn-primary btn-block btn-lg" style="margin-top:10px;" onclick="finalizarRegistroAlumnoGoogle()">Finalizar registro</button>
       </div>
     </div>
   </div>
@@ -557,6 +566,7 @@
       <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="doLogout()">Cerrar sesión</button>
       <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeAccountModal()">Cerrar</button>
       <p style="margin-top:18px;font-size:10.5px;line-height:1.6;color:var(--text-dim);text-align:center;">Compás es una iniciativa privada e independiente. Aunque nuestra plataforma integra y promueve el talento de alumnos, egresados y docentes de la Universidad Nacional de Música (UNM), la institución no posee filiación, auspicio, vinculación institucional, representación ni responsabilidad legal o comercial sobre los servicios, contenidos o actividades prestadas por este emprendimiento.</p>
+      <p style="margin-top:8px;font-size:10.5px;color:var(--text-dim);text-align:center;"><a href="#" onclick="openTerminosModal();return false;" style="color:var(--text-dim);">Términos y Condiciones</a> · © 2026 Compás. Todos los derechos reservados.</p>
     </div>
   </div>
 
@@ -749,6 +759,26 @@
       <div id="faqContent"></div>
       <a href="guia-profesores.html" target="_blank" class="btn btn-teal btn-block" style="margin-top:16px;text-decoration:none;text-align:center;">📖 Ver la guía completa</a>
       <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeFaqModal()">Cerrar</button>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: TÉRMINOS Y CONDICIONES ===== -->
+  <div class="modal-overlay" id="terminosModal">
+    <div class="modal">
+      <h3>Términos y Condiciones</h3>
+      <div style="font-size:12.5px;line-height:1.65;color:var(--text-warm);opacity:0.9;">
+        <p>El presente documento regula el acceso y uso de la plataforma web Compás (en adelante, "la Plataforma"). Al ingresar y utilizar esta PWA, el usuario (alumno, profesor o visitante) acepta plenamente los términos aquí expuestos.</p>
+        <p><strong>1. Propiedad intelectual y derechos de autor</strong><br>
+        Toda la tecnología, código fuente (HTML, CSS, JavaScript y demás componentes), arquitectura de software, flujos de navegación, textos, interfaces gráficas de usuario (UI/UX), bases de datos, y el diseño del logotipo de Compás son propiedad intelectual exclusiva de su creador independiente.<br>
+        Queda terminantemente prohibida la reproducción total o parcial, copia, modificación, distribución o ingeniería inversa de los elementos de la Plataforma sin la autorización expresa y por escrito del titular. El uso de herramientas de Inteligencia Artificial para el desarrollo de la plataforma no exime ni disminuye la titularidad de los derechos sobre la obra ensamblada y su modelo lógico de negocio.</p>
+        <p><strong>2. Naturaleza del servicio (fase de prueba)</strong><br>
+        El usuario reconoce que Compás opera actualmente en una Fase de Prueba / Piloto Técnico. El servicio se limita estrictamente a la intermediación comercial, actuando como un directorio y punto de conexión entre alumnos independientes y profesores/egresados de música.<br>
+        Compás no mantiene un vínculo laboral, societario ni de representación oficial con la Universidad Nacional de Música (UNM). El uso de la palabra "Conservatorio" o "Egresados" se realiza bajo un criterio estrictamente informativo y de procedencia académica de los prestadores de servicios, sin atribuirse la representación de dicha institución pública.</p>
+        <p><strong>3. Comisiones y transacciones</strong><br>
+        La Plataforma se reserva el derecho de cobrar una comisión por el servicio de intermediación y conexión exitosa entre usuarios. Los montos, métodos de pago y condiciones de reembolso aplicables a la fase piloto serán comunicados de manera transparente antes de cada transacción.</p>
+        <p style="margin-top:16px;font-size:11px;color:var(--text-dim);">© 2026 Compás. Todos los derechos reservados conforme a la legislación de Propiedad Intelectual de la República del Perú.</p>
+      </div>
+      <button class="btn btn-ghost btn-block" style="margin-top:14px;" onclick="closeTerminosModal()">Cerrar</button>
     </div>
   </div>
 
@@ -2509,7 +2539,11 @@ function renderStep(){
         <div class="field"><label>WhatsApp</label><input type="tel" id="in_phone" value="${draft.phone}" placeholder="+51 999 999 999"></div>
         <div class="field"><label>Correo</label><input type="email" id="in_email" value="${draft.email}" placeholder="tucorreo@ejemplo.com"></div>
         <div class="field"><label>Contraseña</label><input type="password" id="in_pass" placeholder="Mínimo 6 caracteres"></div>
-        <p style="font-size:11px;color:var(--text-dim);margin-top:4px;line-height:1.5;">Al crear tu cuenta aceptas que el administrador del gremio puede revisar conversaciones internas en caso de disputas o reportes, para proteger la seguridad de la comunidad.</p></div>`;
+        <label style="display:flex;align-items:flex-start;gap:8px;margin-top:10px;font-size:11.5px;color:var(--text-dim);line-height:1.5;cursor:pointer;">
+          <input type="checkbox" id="in_terminos" style="margin-top:2px;flex-shrink:0;">
+          <span>Acepto los <a href="#" onclick="event.preventDefault();event.stopPropagation();openTerminosModal();" style="color:var(--teal-bright);">Términos, Condiciones y Políticas de Propiedad Intelectual</a> de Compás.</span>
+        </label>
+        <p style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.5;">Al crear tu cuenta aceptas que el administrador del gremio puede revisar conversaciones internas en caso de disputas o reportes, para proteger la seguridad de la comunidad.</p></div>`;
     }
   }
   else if(step==='preview'){
@@ -2637,6 +2671,7 @@ window.collectStepAndNext = function(){
       const pass = document.getElementById('in_pass').value;
       if(!email || !email.includes('@')){ shake('in_email'); return; }
       if(!pass || pass.length<6){ shake('in_pass'); return; }
+      if(!document.getElementById('in_terminos').checked){ toast('Debes aceptar los Términos y Condiciones para crear tu cuenta', true); return; }
       draft.email = email; draft.pass = pass;
     }
   }
@@ -2685,7 +2720,9 @@ window.publishProfile = async function(){
         creditos: CREDITOS_INICIALES,
         zone: draft.zone,
         phone: draft.phone,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        aceptoTerminos: true,
+        aceptoTerminosFecha: serverTimestamp()
       });
       await asegurarCanalNotifPersonal(uid);
     }
@@ -2919,6 +2956,8 @@ window.openFaqModal = function(){
   document.getElementById('faqModal').classList.add('active');
 }
 window.closeFaqModal = function(){ document.getElementById('faqModal').classList.remove('active'); }
+window.openTerminosModal = function(){ document.getElementById('terminosModal').classList.add('active'); }
+window.closeTerminosModal = function(){ document.getElementById('terminosModal').classList.remove('active'); }
 window.setFaqTab = function(tab){
   document.getElementById('faqTabProfesores').classList.toggle('active', tab==='profesores');
   document.getElementById('faqTabAlumnos').classList.toggle('active', tab==='alumnos');
@@ -3284,6 +3323,7 @@ window.finalizarRegistroAlumnoGoogle = async function(){
   const zone = document.getElementById('ga_zone').value;
   if(!phone){ toast('Ingresa tu WhatsApp para continuar', true); return; }
   if(!zone){ toast('Selecciona tu zona para continuar', true); return; }
+  if(!document.getElementById('ga_terminos').checked){ toast('Debes aceptar los Términos y Condiciones para continuar', true); return; }
   try{
     await setDoc(doc(db,"usuarios",pendingGoogleUser.uid), {
       name: pendingGoogleUser.name,
@@ -3293,7 +3333,9 @@ window.finalizarRegistroAlumnoGoogle = async function(){
       phone,
       zone,
       photoURL: pendingGoogleUser.photo,
-      createdAt: serverTimestamp()
+      createdAt: serverTimestamp(),
+      aceptoTerminos: true,
+      aceptoTerminosFecha: serverTimestamp()
     });
     await asegurarCanalNotifPersonal(pendingGoogleUser.uid);
     document.getElementById('googleRoleModal').classList.remove('active');
@@ -3316,11 +3358,13 @@ window.saveStudent = async function(){
   const phone = document.getElementById('s_phone').value.trim();
   const zone = document.getElementById('s_zone').value;
   if(!name || !email || !pass || pass.length<6){ toast('Completa nombre, correo y una contraseña de mínimo 6 caracteres', true); return; }
+  if(!document.getElementById('s_terminos').checked){ toast('Debes aceptar los Términos y Condiciones para registrarte', true); return; }
 
   try{
     const cred = await createUserWithEmailAndPassword(auth, email, pass);
     await setDoc(doc(db, "usuarios", cred.user.uid), {
-      name, email, role: "alumno", creditos: CREDITOS_INICIALES, phone, zone, createdAt: serverTimestamp()
+      name, email, role: "alumno", creditos: CREDITOS_INICIALES, phone, zone, createdAt: serverTimestamp(),
+      aceptoTerminos: true, aceptoTerminosFecha: serverTimestamp()
     });
     await asegurarCanalNotifPersonal(cred.user.uid);
     closeAuthModal();
