@@ -910,6 +910,7 @@ let SUPLENCIAS = [];
 let activeFilter = "Todos";
 let currentEditingTeacher = null;
 let currentUser = null;   // { uid, email, name, role, creditos, zone, phone }
+let ADMIN_USUARIOS_CACHE = []; // último snapshot de /usuarios, para el directorio y el CSV del admin
 let authTab = 'login';
 /* ============ NOTIFICACIONES (ntfy.sh, gratis, sin backend) ============ */
 
@@ -2711,7 +2712,13 @@ window.publishProfile = async function(){
         }, { merge: true });
         await asegurarCanalNotifPersonal(uid);
       }catch(e){
-        // Si ya eras alumno, la regla de seguridad bloquea el cambio de rol por ahora.
+        // La regla de seguridad solo permite pasar de 'alumno' a 'profesor'
+        // una vez (nunca al revés, ni tocar esAdmin). Si esto falla por otra
+        // razón (ej. reglas desactualizadas), avisamos en vez de fallar en
+        // silencio, para no repetir el caso de una cuenta que se queda
+        // atascada como 'alumno' aunque ya tenga perfil de profesor.
+        console.error('No se pudo actualizar el rol a profesor:', e);
+        toast('Tu perfil se publicó, pero hubo un problema activando tus funciones de profesor. Escríbenos a Soporte.', true);
       }
     } else {
       const cred = await createUserWithEmailAndPassword(auth, draft.email, draft.pass);
@@ -3630,8 +3637,9 @@ window.loadAdminStats = async function(){
     ]);
 
     let totalProfesores = 0, totalAlumnos = 0, creditosTotales = 0;
-    usuariosSnap.forEach(d=>{
-      const u = d.data();
+    const usuariosArr = usuariosSnap.docs.map(d=>({id:d.id, ...d.data()}));
+    ADMIN_USUARIOS_CACHE = usuariosArr; // para el botón "Descargar CSV" del directorio
+    usuariosArr.forEach(u=>{
       if(u.role === 'profesor') totalProfesores++;
       if(u.role === 'alumno') totalAlumnos++;
       creditosTotales += (u.creditos || 0);
@@ -3767,6 +3775,22 @@ window.loadAdminStats = async function(){
       <div class="admin-section-title mono">Profesores recientes</div>
       ${recientes.length===0 ? '<div class="empty-state"><p>Todavía no hay profesores.</p></div>' :
         recientes.map(t=>`<div class="admin-row"><span class="name">${t.name}</span><span class="meta">${t.zone}</span></div>`).join('')}
+
+      <div class="admin-section-title mono">Directorio de usuarios (${usuariosArr.length})</div>
+      <div class="dz-hint" style="margin-bottom:10px;">Nombre y teléfono de todos los que se registraron (alumnos y profesores). Descárgalo como Excel/CSV para llevar tu propio registro fuera de la app.</div>
+      <button class="btn btn-teal btn-block" style="margin-bottom:12px;" onclick="descargarDirectorioCSV()">⬇ Descargar directorio (CSV)</button>
+      ${usuariosArr.length===0 ? '' : usuariosArr
+        .sort((a,b)=> (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0))
+        .map(u=>{
+          const soloDigitos = (u.phone||'').replace(/\D/g,'');
+          const waLink = soloDigitos ? `https://wa.me/51${soloDigitos.replace(/^51/,'')}` : '';
+          return `
+          <div class="sup-card">
+            <div class="sup-top"><span class="sup-title">${u.name||'(sin nombre)'}</span><span class="tag-pill ${u.role==='profesor'?'modo':''}">${u.role==='profesor'?'Profesor':'Alumno'}</span></div>
+            <div class="sup-meta">📞 ${u.phone || 'Sin teléfono'} ${u.zone ? '· '+u.zone : ''}</div>
+            ${waLink ? `<a href="${waLink}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="margin-top:8px;">💬 Escribirle por WhatsApp</a>` : ''}
+          </div>`;
+        }).join('')}
 
       <button class="btn btn-ghost btn-block" style="margin-top:20px;" onclick="loadAdminStats()">↻ Actualizar</button>
 
@@ -3974,6 +3998,41 @@ window.marcarPagadoAProfesor = async function(profesorId){
     console.error(e);
     toast('No se pudo marcar como pagado', true);
   }
+}
+
+/* Genera un CSV (nombre, teléfono, correo, rol, zona, fecha) con todos los
+   usuarios registrados, a partir del mismo snapshot que ya cargó el panel de
+   admin (ADMIN_USUARIOS_CACHE) — no hace una consulta nueva a Firestore.
+   Sirve para que abras/guardes tu propio registro en Excel o Google Sheets,
+   fuera de la app, sin tener que copiar cada contacto a mano. */
+window.descargarDirectorioCSV = function(){
+  if(!ADMIN_USUARIOS_CACHE.length){ toast('Todavía no hay usuarios para exportar', true); return; }
+  const escapar = (v) => `"${String(v==null?'':v).replace(/"/g,'""')}"`;
+  const filas = [['Nombre','Teléfono','Correo','Rol','Zona','Fecha de registro']];
+  ADMIN_USUARIOS_CACHE
+    .slice()
+    .sort((a,b)=> (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0))
+    .forEach(u=>{
+      const fecha = u.createdAt?.toDate ? u.createdAt.toDate().toLocaleDateString('es-PE') : '';
+      filas.push([
+        u.name || '',
+        u.phone || '',
+        u.email || '',
+        u.role === 'profesor' ? 'Profesor' : 'Alumno',
+        u.zone || '',
+        fecha
+      ]);
+    });
+  const csv = filas.map(fila => fila.map(escapar).join(',')).join('\r\n');
+  // El "\ufeff" (BOM) al inicio es para que Excel/Google Sheets reconozcan
+  // bien las tildes y la "ñ" al abrir el archivo, en vez de mostrar símbolos raros.
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `directorio-compas-${hoyISO()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 /* ============ START ============ */
