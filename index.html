@@ -2413,15 +2413,27 @@ window.goSuplencias = function(){
 }
 
 /* ============ WIZARD (crear perfil de profesor) ============ */
-const STEPS = ['nombre','foto','instrumentos','especialidad','zona','tarifa','experiencia','formacion','modalidad','bio','video','contacto','preview'];
+const STEPS = ['cuenta','nombre','foto','instrumentos','especialidad','zona','tarifa','experiencia','formacion','modalidad','bio','video','contacto','preview'];
 let stepIndex = 0;
+let wizardCuentaTab = 'nueva'; // 'nueva' o 'login', para el primer paso del wizard de profesor
 let draft = {name:"",photo:"",instruments:[],especialidad:"",zone:"",rate:"",anosExperiencia:"",formacion:"",modalidades:[],bio:"",videoUrl:"",phone:"",email:"",pass:""};
 
 window.startWizard = function(existing){
   draft = existing
     ? {name:existing.name||"", photo:existing.photo||"", instruments:[...(existing.instruments||[])], especialidad:existing.especialidad||"", zone:existing.zone||"", rate:existing.rate||"", anosExperiencia:existing.anosExperiencia||"", formacion:existing.formacion||"", modalidades: existing.modalidades ? [...existing.modalidades] : (existing.modalidad ? [existing.modalidad] : []), bio:existing.bio||"", videoUrl:existing.videoUrl||"", phone:existing.phone||"", email:"", pass:""}
     : {name:"",photo:"",instruments:[],especialidad:"",zone:"",rate:"",anosExperiencia:"",formacion:"",modalidades:[],bio:"",videoUrl:"",phone:"",email:"",pass:""};
-  stepIndex = 0;
+
+  if(!existing && auth.currentUser){
+    // Ya hay una sesión activa (ej. venía de una cuenta de alumno) — no hace
+    // falta pedir correo/contraseña de nuevo. Saltamos el paso 'cuenta' y
+    // pre-llenamos lo que ya sabemos de esa cuenta, para no pedírselo de nuevo.
+    draft.name = (currentUser?.name && currentUser.name !== currentUser.email) ? currentUser.name : "";
+    draft.phone = currentUser?.phone || "";
+    draft.zone = currentUser?.zone || "";
+    stepIndex = 1;
+  } else {
+    stepIndex = 0;
+  }
   switchView('wizard');
   renderStep();
 }
@@ -2490,66 +2502,76 @@ function renderStep(){
   const c = document.getElementById('stepContainer');
   let html = "";
 
-  if(step==='nombre'){
-    html = `<div class="step"><div class="step-eyebrow mono">Paso 1 de ${STEPS.length}</div><h2>¿Cómo te llamas?</h2><div class="hint">Así te van a ver los alumnos.</div>
+  if(step==='cuenta'){
+    if(auth.currentUser){
+      // Volvió con "atrás" estando ya logueado — no hay nada que pedirle de nuevo.
+      html = `<div class="step"><div class="step-eyebrow mono">Paso 1 de ${STEPS.length}</div><h2>Ya iniciaste sesión ✓</h2><div class="hint">Vamos a completar tu perfil de profesor con la cuenta ${auth.currentUser.email||''}.</div></div>`;
+    } else {
+      html = `<div class="step"><div class="step-eyebrow mono">Paso 1 de ${STEPS.length}</div><h2>Antes de empezar</h2><div class="hint">¿Ya usaste Compás antes, aunque sea para ver perfiles de profesores? Usa esa misma cuenta para no duplicar tu registro.</div>
+        <label style="display:flex;align-items:flex-start;gap:8px;margin:4px 0 14px;font-size:11.5px;color:var(--text-dim);line-height:1.5;cursor:pointer;">
+          <input type="checkbox" id="wc_terminos" style="margin-top:2px;flex-shrink:0;">
+          <span>Acepto los <a href="#" onclick="event.preventDefault();event.stopPropagation();openTerminosModal();" style="color:var(--teal-bright);">Términos, Condiciones y Políticas de Propiedad Intelectual</a> de Compás.</span>
+        </label>
+        <button class="btn btn-primary btn-block btn-lg" onclick="wizardContinuarConGoogle()">🔎 Continuar con Google</button>
+        <div style="text-align:center;margin:14px 0;color:var(--text-dim);font-size:12px;">o con tu correo</div>
+        <div class="auth-tabs" style="display:flex;gap:8px;margin-bottom:12px;">
+          <button class="auth-tab ${wizardCuentaTab==='nueva'?'active':''}" onclick="setWizardCuentaTab('nueva')">Es mi primera vez</button>
+          <button class="auth-tab ${wizardCuentaTab==='login'?'active':''}" onclick="setWizardCuentaTab('login')">Ya tengo cuenta</button>
+        </div>
+        <div class="field"><label>Correo</label><input type="email" id="wc_email" value="${draft.email}" placeholder="tucorreo@ejemplo.com"></div>
+        <div class="field"><label>Contraseña</label><input type="password" id="wc_pass" placeholder="${wizardCuentaTab==='nueva'?'Mínimo 6 caracteres':'Tu contraseña'}"></div>
+        <button class="btn btn-teal btn-block" style="margin-top:6px;" onclick="${wizardCuentaTab==='nueva'?'wizardCrearCuenta()':'wizardIniciarSesion()'}">${wizardCuentaTab==='nueva'?'Crear cuenta y continuar':'Iniciar sesión y continuar'}</button>
+        <p style="font-size:11px;color:var(--text-dim);margin-top:12px;line-height:1.5;">Al crear tu cuenta aceptas que el administrador del gremio puede revisar conversaciones internas en caso de disputas o reportes, para proteger la seguridad de la comunidad.</p></div>`;
+    }
+  }
+  else if(step==='nombre'){
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 2 de ${STEPS.length}</div><h2>¿Cómo te llamas?</h2><div class="hint">Así te van a ver los alumnos.</div>
       <div class="field"><label>Nombre completo</label><input type="text" id="in_name" value="${draft.name}" placeholder="Ej. César Torres"></div></div>`;
   }
   else if(step==='foto'){
-    html = `<div class="step"><div class="step-eyebrow mono">Paso 2 de ${STEPS.length}</div><h2>Sube una foto tuya</h2><div class="hint">Una foto clara aumenta la confianza del alumno.</div>
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 3 de ${STEPS.length}</div><h2>Sube una foto tuya</h2><div class="hint">Una foto clara aumenta la confianza del alumno.</div>
       <label class="photo-upload" for="in_photo">${draft.photo ? `<img src="${draft.photo}">` : `<span class="ic">📷</span><span>Toca para subir foto</span>`}</label>
       <input type="file" id="in_photo" accept="image/*" style="display:none"></div>`;
   }
   else if(step==='instrumentos'){
-    html = `<div class="step"><div class="step-eyebrow mono">Paso 3 de ${STEPS.length}</div><h2>¿Qué enseñas?</h2><div class="hint">Elige uno o varios instrumentos.</div>
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 4 de ${STEPS.length}</div><h2>¿Qué enseñas?</h2><div class="hint">Elige uno o varios instrumentos.</div>
       <div class="option-grid">${INSTRUMENTS.map(i=>`<div class="option-card ${draft.instruments.includes(i)?'selected':''}" onclick="toggleInstrument('${i}')">${i}</div>`).join('')}</div></div>`;
   }
   else if(step==='especialidad'){
-    html = `<div class="step"><div class="step-eyebrow mono">Paso 4 de ${STEPS.length}</div><h2>¿Cuál es tu especialidad?</h2><div class="hint">De todo lo que enseñas, elige tu instrumento o área principal. Es lo primero que van a ver de ti.</div>
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 5 de ${STEPS.length}</div><h2>¿Cuál es tu especialidad?</h2><div class="hint">De todo lo que enseñas, elige tu instrumento o área principal. Es lo primero que van a ver de ti.</div>
       <div class="option-grid">${draft.instruments.map(i=>`<div class="option-card ${draft.especialidad===i?'selected':''}" onclick="setEspecialidad('${i}')">${i}</div>`).join('')}</div></div>`;
   }
   else if(step==='zona'){
-    html = `<div class="step"><div class="step-eyebrow mono">Paso 5 de ${STEPS.length}</div><h2>¿Desde qué zona enseñas?</h2><div class="hint">Así te encuentran alumnos cerca, sin gastar de más en pasaje.</div>
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 6 de ${STEPS.length}</div><h2>¿Desde qué zona enseñas?</h2><div class="hint">Así te encuentran alumnos cerca, sin gastar de más en pasaje.</div>
       <div class="field"><label>Distrito</label><select id="in_zone"><option value="">Selecciona tu distrito</option>${ZONES.map(z=>`<option value="${z}" ${draft.zone===z?'selected':''}>${z}</option>`).join('')}</select></div></div>`;
   }
   else if(step==='tarifa'){
-    html = `<div class="step"><div class="step-eyebrow mono">Paso 6 de ${STEPS.length}</div><h2>¿Cuánto cobras por hora?</h2><div class="hint">Puedes cambiarlo cuando quieras.</div>
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 7 de ${STEPS.length}</div><h2>¿Cuánto cobras por hora?</h2><div class="hint">Puedes cambiarlo cuando quieras.</div>
       <div class="field"><label>Tarifa por hora (S/)</label><input type="number" id="in_rate" value="${draft.rate}" placeholder="Ej. 40"></div></div>`;
   }
   else if(step==='experiencia'){
-    html = `<div class="step"><div class="step-eyebrow mono">Paso 7 de ${STEPS.length}</div><h2>¿Cuántos años de experiencia tienes?</h2><div class="hint">Como docente y/o como ejecutante. Esto genera confianza con los padres de familia.</div>
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 8 de ${STEPS.length}</div><h2>¿Cuántos años de experiencia tienes?</h2><div class="hint">Como docente y/o como ejecutante. Esto genera confianza con los padres de familia.</div>
       <div class="field"><label>Años de experiencia</label><input type="number" min="0" id="in_experiencia" value="${draft.anosExperiencia}" placeholder="Ej. 6"></div></div>`;
   }
   else if(step==='formacion'){
-    html = `<div class="step"><div class="step-eyebrow mono">Paso 8 de ${STEPS.length}</div><h2>Tu formación académica</h2><div class="hint">Año de estudio o egreso de la UNM. Ej. "Egresado UNM 2019" o "UNM, 8vo ciclo".</div>
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 9 de ${STEPS.length}</div><h2>Tu formación académica</h2><div class="hint">Año de estudio o egreso de la UNM. Ej. "Egresado UNM 2019" o "UNM, 8vo ciclo".</div>
       <div class="field"><label>Formación académica</label><input type="text" id="in_formacion" maxlength="80" value="${draft.formacion}" placeholder="Ej. Egresado UNM 2019"></div></div>`;
   }
   else if(step==='modalidad'){
-    html = `<div class="step"><div class="step-eyebrow mono">Paso 9 de ${STEPS.length}</div><h2>¿Cómo das tus clases?</h2><div class="hint">Elige una o varias modalidades.</div>
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 10 de ${STEPS.length}</div><h2>¿Cómo das tus clases?</h2><div class="hint">Elige una o varias modalidades.</div>
       <div class="option-grid">${MODALIDADES.map(m=>`<div class="option-card ${draft.modalidades.includes(m.id)?'selected':''}" onclick="toggleModalidad('${m.id}')">${m.label}</div>`).join('')}</div></div>`;
   }
   else if(step==='bio'){
-    html = `<div class="step"><div class="step-eyebrow mono">Paso 10 de ${STEPS.length}</div><h2>Cuéntanos tu historia, corto</h2><div class="hint">Tu reseña profesional. Máximo 160 caracteres.</div>
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 11 de ${STEPS.length}</div><h2>Cuéntanos tu historia, corto</h2><div class="hint">Tu reseña profesional. Máximo 160 caracteres.</div>
       <div class="field"><label>Breve historia</label><textarea id="in_bio" maxlength="160" oninput="document.getElementById('bioCount').textContent=this.value.length">${draft.bio}</textarea><div class="counter"><span id="bioCount">${draft.bio.length}</span>/160</div></div></div>`;
   }
   else if(step==='video'){
-    html = `<div class="step"><div class="step-eyebrow mono">Paso 11 de ${STEPS.length}</div><h2>¿Tienes un video tocando o enseñando?</h2><div class="hint">Opcional. Pega el link de YouTube o Drive.</div>
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 12 de ${STEPS.length}</div><h2>¿Tienes un video tocando o enseñando?</h2><div class="hint">Opcional. Pega el link de YouTube o Drive.</div>
       <div class="field"><label>Link del video</label><input type="url" id="in_video" value="${draft.videoUrl}" placeholder="https://youtube.com/..."></div></div>`;
   }
   else if(step==='contacto'){
-    if(auth.currentUser){
-      html = `<div class="step"><div class="step-eyebrow mono">Paso 12 de ${STEPS.length}</div><h2>¿A qué WhatsApp te contactan?</h2><div class="hint">Ya tienes una cuenta activa — esto solo completa tu perfil de profesor, no crea una cuenta nueva.</div>
-        <div class="field"><label>WhatsApp</label><input type="tel" id="in_phone" value="${draft.phone}" placeholder="+51 999 999 999"></div></div>`;
-    } else {
-      html = `<div class="step"><div class="step-eyebrow mono">Paso 12 de ${STEPS.length}</div><h2>Crea tu cuenta de profesor</h2><div class="hint">La usarás para publicar suplencias y administrar tu perfil.</div>
-        <div class="field"><label>WhatsApp</label><input type="tel" id="in_phone" value="${draft.phone}" placeholder="+51 999 999 999"></div>
-        <div class="field"><label>Correo</label><input type="email" id="in_email" value="${draft.email}" placeholder="tucorreo@ejemplo.com"></div>
-        <div class="field"><label>Contraseña</label><input type="password" id="in_pass" placeholder="Mínimo 6 caracteres"></div>
-        <label style="display:flex;align-items:flex-start;gap:8px;margin-top:10px;font-size:11.5px;color:var(--text-dim);line-height:1.5;cursor:pointer;">
-          <input type="checkbox" id="in_terminos" style="margin-top:2px;flex-shrink:0;">
-          <span>Acepto los <a href="#" onclick="event.preventDefault();event.stopPropagation();openTerminosModal();" style="color:var(--teal-bright);">Términos, Condiciones y Políticas de Propiedad Intelectual</a> de Compás.</span>
-        </label>
-        <p style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.5;">Al crear tu cuenta aceptas que el administrador del gremio puede revisar conversaciones internas en caso de disputas o reportes, para proteger la seguridad de la comunidad.</p></div>`;
-    }
+    html = `<div class="step"><div class="step-eyebrow mono">Paso 13 de ${STEPS.length}</div><h2>¿A qué WhatsApp te contactan?</h2><div class="hint">Así te contactan los alumnos y el administrador del gremio.</div>
+      <div class="field"><label>WhatsApp</label><input type="tel" id="in_phone" value="${draft.phone}" placeholder="+51 999 999 999"></div></div>`;
   }
   else if(step==='preview'){
     html = `<div class="step"><div class="step-eyebrow mono">Listo</div><h2>Así se ve tu perfil</h2><div class="hint">Revisa que todo esté bien antes de publicarlo.</div>
@@ -2576,7 +2598,7 @@ function renderStep(){
 
   c.innerHTML = html;
 
-  if(step!=='preview'){
+  if(step!=='preview' && !(step==='cuenta' && !auth.currentUser)){
     const footer = document.createElement('div');
     footer.className = 'step-footer';
     footer.innerHTML = `<button class="btn btn-primary btn-block btn-lg" id="nextBtn" onclick="collectStepAndNext()">Continuar</button>`;
@@ -2624,7 +2646,12 @@ function compressImage(file, maxWidth, quality){
 
 window.collectStepAndNext = function(){
   const step = STEPS[stepIndex];
-  if(step==='nombre'){
+  if(step==='cuenta'){
+    // Solo se llega aquí si auth.currentUser ya existe (si no, este paso usa
+    // sus propios botones — wizardIniciarSesion/wizardCrearCuenta/Google —
+    // en vez del botón genérico "Continuar"). Nada que validar, ya sabemos quién es.
+  }
+  else if(step==='nombre'){
     const v = document.getElementById('in_name').value.trim();
     if(!v){ shake('in_name'); return; }
     draft.name = v;
@@ -2671,14 +2698,6 @@ window.collectStepAndNext = function(){
     const phone = document.getElementById('in_phone').value.trim();
     if(!phone){ shake('in_phone'); return; }
     draft.phone = phone;
-    if(!auth.currentUser){
-      const email = document.getElementById('in_email').value.trim();
-      const pass = document.getElementById('in_pass').value;
-      if(!email || !email.includes('@')){ shake('in_email'); return; }
-      if(!pass || pass.length<6){ shake('in_pass'); return; }
-      if(!document.getElementById('in_terminos').checked){ toast('Debes aceptar los Términos y Condiciones para crear tu cuenta', true); return; }
-      draft.email = email; draft.pass = pass;
-    }
   }
   nextStep();
 }
@@ -2689,54 +2708,131 @@ function shake(id){
   setTimeout(()=>{ el.style.borderColor=''; }, 900);
 }
 
-/* ============ PUBLICAR PERFIL: crea cuenta Auth + usuarios + profesores ============ */
-window.publishProfile = async function(){
-  try{
-    let uid, email;
+window.setWizardCuentaTab = function(tab){ wizardCuentaTab = tab; renderStep(); }
 
-    if(auth.currentUser){
-      // Ya hay una cuenta activa (ej. te registraste con Google, como alumno,
-      // o ya tienes cuenta de profesor): completamos el perfil sin crear
-      // una cuenta nueva. setDoc+merge crea el documento si no existía
-      // todavía (caso de alguien nuevo que entró con Google).
-      uid = auth.currentUser.uid;
-      email = auth.currentUser.email;
-      try{
-        await setDoc(doc(db, "usuarios", uid), {
-          role: "profesor",
-          name: draft.name,
-          email: email,
-          phone: draft.phone,
-          zone: draft.zone,
-          creditos: CREDITOS_INICIALES
-        }, { merge: true });
-        await asegurarCanalNotifPersonal(uid);
-      }catch(e){
-        // La regla de seguridad solo permite pasar de 'alumno' a 'profesor'
-        // una vez (nunca al revés, ni tocar esAdmin). Si esto falla por otra
-        // razón (ej. reglas desactualizadas), avisamos en vez de fallar en
-        // silencio, para no repetir el caso de una cuenta que se queda
-        // atascada como 'alumno' aunque ya tenga perfil de profesor.
-        console.error('No se pudo actualizar el rol a profesor:', e);
-        toast('Tu perfil se publicó, pero hubo un problema activando tus funciones de profesor. Escríbenos a Soporte.', true);
+/* Después de iniciar sesión o crear cuenta en el paso 1 del wizard, decide
+   qué hacer según lo que ya exista para ese uid en /usuarios:
+   - Si ya es profesor: no lo dejamos crear un perfil duplicado, lo mandamos
+     a editar el que ya tiene.
+   - Si es alumno (o cuenta recién creada sin ficha aún): precargamos lo que
+     ya sabemos de él (nombre, teléfono, zona) y seguimos el wizard normal.
+   El cambio real de role a 'profesor' se guarda recién en publishProfile,
+   al final, cuando ya se confirmó todo el perfil. */
+async function wizardContinuarTrasLogin(){
+  const uid = auth.currentUser.uid;
+  try{
+    const snap = await getDoc(doc(db,"usuarios",uid));
+    if(snap.exists()){
+      const u = snap.data();
+      if(u.role === 'profesor'){
+        toast('Ya tienes un perfil de profesor. Te llevamos a editarlo.');
+        const profSnap = await getDoc(doc(db,"profesores",uid));
+        currentEditingTeacher = { id: uid, ...(profSnap.exists() ? profSnap.data() : {}) };
+        startWizard(currentEditingTeacher);
+        return;
       }
+      draft.name = (u.name && u.name !== u.email) ? u.name : (auth.currentUser.displayName || "");
+      draft.phone = u.phone || "";
+      draft.zone = u.zone || "";
+      draft.email = u.email || auth.currentUser.email || "";
     } else {
-      const cred = await createUserWithEmailAndPassword(auth, draft.email, draft.pass);
-      uid = cred.user.uid;
-      email = draft.email;
-      await setDoc(doc(db, "usuarios", uid), {
-        name: draft.name,
-        email: draft.email,
-        role: "profesor",
+      // Cuenta de Auth sin ficha en Firestore todavía (típico si entró con
+      // Google por primera vez sin haber sido alumno antes). La creamos ya
+      // mismo, para no repetir el caso de una cuenta fantasma sin registro.
+      await setDoc(doc(db,"usuarios",uid), {
+        name: auth.currentUser.displayName || "",
+        email: auth.currentUser.email || "",
+        role: "alumno",
         creditos: CREDITOS_INICIALES,
-        zone: draft.zone,
-        phone: draft.phone,
+        phone: "", zone: "",
         createdAt: serverTimestamp(),
         aceptoTerminos: true,
         aceptoTerminosFecha: serverTimestamp()
       });
-      await asegurarCanalNotifPersonal(uid);
+      draft.name = auth.currentUser.displayName || "";
+      draft.email = auth.currentUser.email || "";
     }
+    nextStep();
+  }catch(e){
+    console.error(e);
+    toast('No se pudo continuar, intenta de nuevo', true);
+  }
+}
+
+window.wizardContinuarConGoogle = async function(){
+  if(!document.getElementById('wc_terminos').checked){ toast('Debes aceptar los Términos y Condiciones para continuar', true); return; }
+  try{
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider);
+    await wizardContinuarTrasLogin();
+  }catch(e){
+    console.error(e);
+    toast('No se pudo continuar con Google', true);
+  }
+}
+
+window.wizardIniciarSesion = async function(){
+  const email = document.getElementById('wc_email').value.trim();
+  const pass = document.getElementById('wc_pass').value;
+  if(!email || !pass){ toast('Ingresa tu correo y contraseña', true); return; }
+  try{
+    await signInWithEmailAndPassword(auth, email, pass);
+    await wizardContinuarTrasLogin();
+  }catch(e){
+    console.error(e);
+    toast('Correo o contraseña incorrectos', true);
+  }
+}
+
+window.wizardCrearCuenta = async function(){
+  const email = document.getElementById('wc_email').value.trim();
+  const pass = document.getElementById('wc_pass').value;
+  if(!email || !email.includes('@')){ shake('wc_email'); return; }
+  if(!pass || pass.length<6){ shake('wc_pass'); return; }
+  if(!document.getElementById('wc_terminos').checked){ toast('Debes aceptar los Términos y Condiciones para crear tu cuenta', true); return; }
+  try{
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    await setDoc(doc(db,"usuarios",cred.user.uid), {
+      name: "", email, role: "profesor", creditos: CREDITOS_INICIALES, phone: "", zone: "",
+      createdAt: serverTimestamp(), aceptoTerminos: true, aceptoTerminosFecha: serverTimestamp()
+    });
+    draft.email = email;
+    nextStep();
+  }catch(e){
+    console.error(e);
+    if(e.code === 'auth/email-already-in-use'){
+      toast('Ese correo ya tiene una cuenta. Ingresa tu contraseña para continuar.', true);
+      wizardCuentaTab = 'login';
+      renderStep();
+      document.getElementById('wc_email').value = email;
+    } else {
+      toast('No se pudo crear tu cuenta, intenta de nuevo', true);
+    }
+  }
+}
+
+/* ============ PUBLICAR PERFIL: crea cuenta Auth + usuarios + profesores ============ */
+window.publishProfile = async function(){
+  try{
+    if(!auth.currentUser){ toast('Tu sesión se cerró, vuelve a intentarlo desde el inicio', true); switchView('ensenar'); return; }
+    const uid = auth.currentUser.uid;
+    const email = auth.currentUser.email;
+
+    // Si venía de una cuenta de alumno (o de una cuenta recién creada como
+    // 'alumno' por defecto en el paso 1), la promovemos a profesor recién
+    // acá, ya con el perfil completo y confirmado.
+    try{
+      await setDoc(doc(db,"usuarios",uid), {
+        role: "profesor",
+        name: draft.name,
+        phone: draft.phone,
+        zone: draft.zone
+      }, { merge: true });
+    }catch(e){
+      console.error('No se pudo actualizar el rol a profesor:', e);
+      toast('Tu perfil se publicó, pero hubo un problema activando tus funciones de profesor. Escríbenos a Soporte.', true);
+    }
+    await asegurarCanalNotifPersonal(uid);
 
     const esEdicion = !!(currentEditingTeacher && currentEditingTeacher.id === uid);
     const datosProfesor = {
