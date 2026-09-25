@@ -391,7 +391,7 @@
   <!-- ===== VIEW: ENSEÑAR ===== -->
   <div class="view" id="view-ensenar">
     <div class="hero">
-      <h2>Llena tus huecos de horario. Enseña lo que sabes.</h2>
+      <h2>Aprovecha tus horas libres. Enseña lo que sabes.</h2>
       <p>Publica tu perfil, define tu zona y tu tarifa. Los alumnos te contactan directo, sin intermediarios raros.</p>
     </div>
     <div class="staff"><div class="line"></div><div class="line"></div><div class="line"></div><div class="line"></div></div>
@@ -1029,6 +1029,11 @@ function renderNavLock(){
 const profesoresQ = query(collection(db, "profesores"), orderBy("createdAt", "desc"));
 onSnapshot(profesoresQ, (snap) => {
   TEACHERS = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  // Los profesores marcados como "destacado" (desde el Panel de Administrador)
+  // van siempre primero; el resto mantiene el orden normal (más nuevo primero).
+  // sort() es estable, así que entre destacados o entre no-destacados el orden
+  // por fecha que ya trajo la consulta no se altera.
+  TEACHERS.sort((a,b) => (b.destacado?1:0) - (a.destacado?1:0));
   renderFilterbar();
   renderTeacherList();
   renderMyProfilePreview();
@@ -3880,11 +3885,13 @@ window.loadAdminStats = async function(){
         .map(u=>{
           const soloDigitos = (u.phone||'').replace(/\D/g,'');
           const waLink = soloDigitos ? `https://wa.me/51${soloDigitos.replace(/^51/,'')}` : '';
+          const teacher = u.role==='profesor' ? TEACHERS.find(t=>t.id===u.id) : null;
           return `
           <div class="sup-card">
             <div class="sup-top"><span class="sup-title">${u.name||'(sin nombre)'}</span><span class="tag-pill ${u.role==='profesor'?'modo':''}">${u.role==='profesor'?'Profesor':'Alumno'}</span></div>
             <div class="sup-meta">📞 ${u.phone || 'Sin teléfono'} ${u.zone ? '· '+u.zone : ''}</div>
             ${waLink ? `<a href="${waLink}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="margin-top:8px;">💬 Escribirle por WhatsApp</a>` : ''}
+            ${teacher ? `<button class="btn ${teacher.destacado?'btn-primary':'btn-ghost'} btn-sm" style="margin-top:6px;" onclick="toggleDestacado('${u.id}', ${!!teacher.destacado})">${teacher.destacado?'★ Destacado (quitar)':'☆ Destacar en Explorar'}</button>` : ''}
           </div>`;
         }).join('')}
 
@@ -4101,6 +4108,18 @@ window.marcarPagadoAProfesor = async function(profesorId){
    admin (ADMIN_USUARIOS_CACHE) — no hace una consulta nueva a Firestore.
    Sirve para que abras/guardes tu propio registro en Excel o Google Sheets,
    fuera de la app, sin tener que copiar cada contacto a mano. */
+/* Marca o quita el "destaque" de un profesor: los destacados aparecen
+   siempre primero en Explorar, antes que cualquier otro (ver el sort en el
+   listener de /profesores). Es acción exclusiva de admin — la regla de
+   Firestore ya permite que isAdmin() toque cualquier campo sin restricción. */
+window.toggleDestacado = async function(teacherId, estabaDestacado){
+  try{
+    await updateDoc(doc(db,"profesores",teacherId), { destacado: !estabaDestacado });
+    toast(estabaDestacado ? 'Ya no está destacado' : 'Ahora aparece primero en Explorar ★');
+    loadAdminStats();
+  }catch(e){ console.error(e); toast('No se pudo actualizar', true); }
+}
+
 window.descargarDirectorioCSV = function(){
   if(!ADMIN_USUARIOS_CACHE.length){ toast('Todavía no hay usuarios para exportar', true); return; }
   const escapar = (v) => `"${String(v==null?'':v).replace(/"/g,'""')}"`;
