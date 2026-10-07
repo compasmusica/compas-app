@@ -1312,11 +1312,23 @@ function renderTeacherList(){
   const filtered = activeFilter==="Todos" ? aprobados : aprobados.filter(t=>
     t.zone===activeFilter || (t.zonasAdicionales||[]).some(z=>z.zona===activeFilter)
   );
+
+  // Banner fijo: siempre lleva a quien esté marcado "destacado" (hoy, el
+  // admin). Así, cualquiera que busque un instrumento que todavía no
+  // tenemos cubierto igual tiene un camino de vuelta, en vez de irse sin más.
+  const contacto = TEACHERS.find(t => t.destacado === true && t.aprobado === true);
+  const bannerHtml = contacto ? `
+    <div class="sup-card" style="margin-bottom:14px;border:1.5px solid var(--brass);">
+      <div class="sup-top"><span class="sup-title">🎵 ¿No encuentras tu instrumento?</span></div>
+      <div class="sup-meta">Agenda una asesoría gratuita de 10 min y te ayudamos a conseguir profesor.</div>
+      <button class="btn btn-teal btn-sm" style="margin-top:10px;" onclick="abrirPerfilCompleto('${contacto.id}')">Agendar asesoría gratis</button>
+    </div>` : '';
+
   if(filtered.length===0){
-    list.innerHTML = `<div class="empty-state"><div class="icon">♪</div><p>Todavía no hay profesores en esta zona.<br>Sé el primero en publicar tu perfil.</p></div>`;
+    list.innerHTML = bannerHtml + `<div class="empty-state"><div class="icon">♪</div><p>Todavía no hay profesores en esta zona.<br>Sé el primero en publicar tu perfil.</p></div>`;
     return;
   }
-  list.innerHTML = filtered.map(t=>{
+  list.innerHTML = bannerHtml + filtered.map(t=>{
     const verificado = (t.clasesCompletadas||0) >= 3;
     const rating = VALORACIONES_POR_PROFESOR[t.id];
     const ratingHtml = rating ? `<span class="tag-pill" style="background:rgba(201,151,63,0.14);color:var(--brass-bright);">★ ${rating.promedio.toFixed(1)} (${rating.cantidad})</span>` : '';
@@ -2001,12 +2013,26 @@ window.rechazarSolicitudCancelacion = async function(reservaId){
   }catch(e){ console.error(e); toast('No se pudo procesar', true); }
 }
 
-/* Alumno paga una vez el profesor confirmó disponibilidad */
+/* Alumno paga una vez el profesor confirmó disponibilidad.
+   Si precio es 0 (ej. una microclase/consulta gratuita de lanzamiento), no
+   tiene sentido pedir Yape ni comprobante — se confirma la reserva directo,
+   y de ahí sigue el mismo camino de siempre (el admin la marca como pagada
+   desde el panel, igual que cualquier otra). */
+let pagoEsGratis = false;
 window.openPagoModal = function(reservaId, precio, precioClases, movilidad){
   pagoReservaId = reservaId;
   comprobanteData = null;
-  document.getElementById('reservaModalTitle').textContent = 'Pagar clase';
-  document.getElementById('reservaModalBtn').textContent = 'Ya pagué';
+  pagoEsGratis = (precio === 0);
+  document.getElementById('reservaModalTitle').textContent = pagoEsGratis ? 'Confirmar clase gratuita' : 'Pagar clase';
+  document.getElementById('reservaModalBtn').textContent = pagoEsGratis ? 'Confirmar reserva' : 'Ya pagué';
+  if(pagoEsGratis){
+    document.getElementById('reserva_body').innerHTML = `
+      <div class="hint" style="margin-bottom:4px;">🎉 Esta clase es gratuita — no necesitas pagar nada.</div>
+      <p style="font-size:13px;color:var(--text-dim);">Solo confirma para avisarle al profesor que vienes. En cuanto lo confirmemos del lado administrativo, verás el contacto aquí mismo.</p>
+    `;
+    document.getElementById('reservaModal').classList.add('active');
+    return;
+  }
   const desgloseHtml = (movilidad > 0) ? `
     <div class="sup-card" style="margin-bottom:14px;">
       <div class="sup-meta" style="display:flex;justify-content:space-between;"><span>Costo de clase</span><span>S/ ${precioClases}</span></div>
@@ -2040,17 +2066,46 @@ window.openPagoModal = function(reservaId, precio, precioClases, movilidad){
 
 window.submitReserva = async function(){
   if(pagoReservaId){
-    if(!comprobanteData){ toast('Sube tu comprobante de pago antes de continuar', true); return; }
+    if(!pagoEsGratis && !comprobanteData){ toast('Sube tu comprobante de pago antes de continuar', true); return; }
     try{
-      await updateDoc(doc(db,"reservas",pagoReservaId), { comprobante: comprobanteData, estado: 'pendiente_pago' });
-      notificarCesar('Comprobante subido', 'Un alumno subió su comprobante. Revisa el panel para confirmar el pago.');
+      if(pagoEsGratis){
+        // Promoción de lanzamiento: una sola asesoría gratuita por alumno
+        // EN TODA LA APP, sin importar con qué profesor — no solo con este.
+        // Así, aunque más adelante otro profesor también ofrezca gratis,
+        // nadie puede repetir la promoción cambiando de profesor.
+        const estaReserva = await getDoc(doc(db,"reservas",pagoReservaId));
+        if(!estaReserva.exists()){ toast('Esa reserva ya no existe', true); return; }
+        const { alumnoId } = estaReserva.data();
+        const previasQ = query(collection(db,"reservas"),
+          where("alumnoId","==",alumnoId),
+          where("precio","==",0)
+        );
+        const previasSnap = await getDocs(previasQ);
+        const yaUsada = previasSnap.docs.some(d =>
+          d.id !== pagoReservaId && !['rechazada','cancelada'].includes(d.data().estado)
+        );
+        if(yaUsada){
+          toast('Ya usaste tu asesoría gratuita de lanzamiento. Para la próxima, reserva una clase con pago normal.', true);
+          closeReservaModal();
+          pagoReservaId = null;
+          return;
+        }
+      }
+      await updateDoc(doc(db,"reservas",pagoReservaId), {
+        comprobante: pagoEsGratis ? 'Clase gratuita — sin pago' : comprobanteData,
+        estado: 'pendiente_pago'
+      });
+      notificarCesar(
+        pagoEsGratis ? 'Reserva gratuita confirmada' : 'Comprobante subido',
+        pagoEsGratis ? 'Un alumno confirmó una clase gratuita. Revisa el panel para aprobarla.' : 'Un alumno subió su comprobante. Revisa el panel para confirmar el pago.'
+      );
       closeReservaModal();
       pagoReservaId = null;
-      toast('¡Listo! En cuanto confirmemos tu pago verás el contacto aquí mismo.');
+      toast(pagoEsGratis ? '¡Listo! En cuanto la aprobemos verás el contacto aquí mismo.' : '¡Listo! En cuanto confirmemos tu pago verás el contacto aquí mismo.');
       loadMyReservas();
     }catch(e){
       console.error(e);
-      toast('No se pudo enviar el comprobante, intenta de nuevo', true);
+      toast('No se pudo enviar tu reserva, intenta de nuevo', true);
     }
   } else {
     submitSolicitud();
@@ -2338,7 +2393,9 @@ function renderMisReservas(lista, rol){
       // El alumno acaba de subir su comprobante y queda esperando sin ver nada —
       // le mostramos de vuelta lo que subió, para que confíe en que sí se envió bien.
       if(rol==='alumno' && r.comprobante){
-        accion = `<div style="margin-top:8px;"><div class="mono" style="font-size:10.5px;color:var(--text-dim);margin-bottom:5px;">Tu comprobante:</div><img src="${r.comprobante}" style="width:100%;max-width:220px;border-radius:8px;display:block;"></div>`;
+        accion = r.comprobante.startsWith('data:')
+          ? `<div style="margin-top:8px;"><div class="mono" style="font-size:10.5px;color:var(--text-dim);margin-bottom:5px;">Tu comprobante:</div><img src="${r.comprobante}" style="width:100%;max-width:220px;border-radius:8px;display:block;"></div>`
+          : `<div class="sup-meta" style="margin-top:8px;">🎉 ${r.comprobante}</div>`;
       }
       if(rol==='alumno'){
         accion += r.cancelacionSolicitada
@@ -3859,8 +3916,10 @@ window.loadAdminStats = async function(){
           <div class="sup-card">
             <div class="sup-top"><span class="sup-title">${r.alumnoNombre} → ${r.profesorNombre}</span><span class="sup-monto">S/ ${r.precio}</span></div>
             <div class="sup-meta">Tu comisión: S/ ${r.comisionApp} · Le toca al profesor: S/ ${r.gananciaProfesor}</div>
-            ${r.comprobante ? `<img src="${r.comprobante}" style="width:100%;border-radius:8px;margin-top:8px;">` : ''}
-            <button class="btn btn-teal btn-sm" style="margin-top:10px;" onclick="confirmarPago('${r.id}')">Confirmar pago recibido</button>
+            ${r.comprobante ? (r.comprobante.startsWith('data:')
+              ? `<img src="${r.comprobante}" style="width:100%;border-radius:8px;margin-top:8px;">`
+              : `<div class="sup-meta" style="margin-top:8px;">🎉 ${r.comprobante}</div>`) : ''}
+            <button class="btn btn-teal btn-sm" style="margin-top:10px;" onclick="confirmarPago('${r.id}')">${r.precio===0?'Aprobar clase gratuita':'Confirmar pago recibido'}</button>
           </div>
         `).join('')}
 
@@ -3967,13 +4026,13 @@ window.rechazarVerificacionUNM = async function(profesorId){
 }
 
 window.confirmarPago = async function(reservaId){
-  const ok = confirm('¿Confirmas que el pago llegó a tu cuenta?');
+  const reservaRef = doc(db, "reservas", reservaId);
+  const reservaSnap = await getDoc(reservaRef);
+  if(!reservaSnap.exists()) return;
+  const r = reservaSnap.data();
+  const ok = confirm(r.precio===0 ? '¿Apruebas esta clase gratuita?' : '¿Confirmas que el pago llegó a tu cuenta?');
   if(!ok) return;
   try{
-    const reservaRef = doc(db, "reservas", reservaId);
-    const reservaSnap = await getDoc(reservaRef);
-    if(!reservaSnap.exists()) return;
-    const r = reservaSnap.data();
 
     await updateDoc(reservaRef, { estado: 'pago_confirmado', confirmedAt: serverTimestamp() });
 
